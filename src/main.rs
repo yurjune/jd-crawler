@@ -1,4 +1,4 @@
-use jd_crawler::{save_to_csv, Result, WantedClient};
+use jd_crawler::{Result, WantedClient, save_to_csv};
 
 fn main() -> Result<()> {
     println!("=== Wanted 프론트엔드 채용공고 크롤러 ===\n");
