@@ -1,4 +1,5 @@
 use crate::crawler::{JobCrawler, JobDetailCrawler, JobListCrawler};
+use crate::models::{JobCategory, JobSubcategory};
 use crate::user_agent::get_random_user_agent;
 use crate::{Job, Result};
 use headless_chrome::Tab;
@@ -8,41 +9,50 @@ use scraper::{Html, Selector};
 use std::sync::Arc;
 use std::time::Duration;
 
-const JOB_CATEGORY_DEVELOPMENT: u32 = 518;
-const JOB_SUBCATEGORY_FRONTEND: u32 = 669;
+const DEFAULT_MIN_YEARS: u8 = 0;
+const DEFAULT_MAX_YEARS: u8 = 5;
 
 pub struct WantedClient {
     base_url: String,
     num_threads: usize,
+    category: JobCategory,
+    subcategory: JobSubcategory,
+    min_years: u8,
+    max_years: u8,
 }
 
 impl WantedClient {
-    pub fn new(num_threads: usize) -> Self {
+    pub fn new(num_threads: usize, category: JobCategory, subcategory: JobSubcategory) -> Self {
         Self {
             base_url: "https://www.wanted.co.kr".to_string(),
             num_threads,
+            category,
+            subcategory,
+            min_years: DEFAULT_MIN_YEARS,
+            max_years: DEFAULT_MAX_YEARS,
         }
     }
 
-    fn build_url(&self, min_years: u8, max_years: u8) -> String {
+    fn build_url(&self) -> String {
         format!(
             "{}/wdlist/{}/{}?country=kr&job_sort=job.recommend_order&years={}&years={}&locations=all",
-            self.base_url, JOB_CATEGORY_DEVELOPMENT, JOB_SUBCATEGORY_FRONTEND, min_years, max_years
+            self.base_url,
+            self.category as u32,
+            self.subcategory as u32,
+            self.min_years,
+            self.max_years
         )
     }
 
-    pub fn fetch_frontend_jobs(
-        &self,
-        min_years: u8,
-        max_years: u8,
-        max_page: usize,
-    ) -> Result<Vec<Job>> {
-        let url = self.build_url(min_years, max_years);
-        let max_scroll = if max_page > 0 { max_page - 1 } else { 0 };
-        let jobs = self.fetch_all_jobs(&url, max_scroll)?;
+    pub fn start_crawl(&self, total_pages: usize) -> Result<Vec<Job>> {
+        let url = self.build_url();
 
-        println!("\n상세 정보 수집 시작...");
+        println!("프론트엔드 0~5년차 채용공고 목록 수집 시작...");
+        let jobs = self.fetch_all_jobs(&url, total_pages)?;
+        let job_counts = jobs.len();
+        println!("\n✅ 최종 {}개 채용공고 수집 완료", job_counts);
 
+        println!("\n각 채용공고 상세 수집 시작...");
         let browsers: Vec<_> = (0..self.num_threads)
             .map(|_| {
                 let thread_id = std::thread::current().id();
@@ -61,13 +71,19 @@ impl WantedClient {
                 .map(|(idx, job)| {
                     let thread_id = std::thread::current().id();
                     let browser = &browsers[idx % self.num_threads];
-                    match self.fetch_job_detail_with_browser(browser, &job.url) {
+                    match self.fetch_job_detail(browser, &job.url) {
                         Ok((deadline, location)) => {
-                            println!("[{:?}] [{}] 완료: {}", thread_id, idx, job.title);
+                            println!(
+                                "[{:?}] [{}/{}] 완료: {}",
+                                thread_id, idx, job_counts, job.title
+                            );
                             job.clone().with_details(deadline, location)
                         }
                         Err(e) => {
-                            eprintln!("[{:?}] [{}] 실패 ({}): {}", thread_id, idx, job.title, e);
+                            eprintln!(
+                                "[{:?}] [{}/{}] 실패 ({}): {}",
+                                thread_id, idx, job_counts, job.title, e
+                            );
                             job.clone()
                         }
                     }
@@ -77,32 +93,11 @@ impl WantedClient {
 
         Ok(jobs_with_details)
     }
-
-    fn fetch_job_detail_with_browser(
-        &self,
-        browser: &headless_chrome::Browser,
-        url: &str,
-    ) -> Result<(Option<String>, Option<String>)> {
-        let tab = browser.new_tab()?;
-
-        tab.navigate_to(url)?;
-        tab.wait_for_element("body")?;
-        std::thread::sleep(Duration::from_secs(2));
-
-        let html = tab.get_content()?;
-
-        let deadline = self.extract_deadline(&html);
-        let location = self.extract_location(&html);
-
-        std::thread::sleep(Duration::from_secs(1));
-
-        Ok((deadline, location))
-    }
 }
 
 impl JobCrawler for WantedClient {
     fn wait_for_page_load(&self, tab: &Arc<Tab>) -> Result<()> {
-        println!("페이지 로딩 대기 중...");
+        println!("페이지 로드 대기 중...");
         tab.wait_for_element("body")?;
         tab.wait_for_element(r#"[data-cy="job-list"]"#)?;
         std::thread::sleep(Duration::from_secs(3));
@@ -161,11 +156,25 @@ impl JobListCrawler for WantedClient {
 }
 
 impl JobDetailCrawler for WantedClient {
-    fn fetch_job_detail(&self, url: &str) -> Result<(Option<String>, Option<String>)> {
-        let thread_id = std::thread::current().id();
-        let user_agent = get_random_user_agent(thread_id);
-        let browser = self.create_browser(user_agent)?;
-        self.fetch_job_detail_with_browser(&browser, url)
+    fn fetch_job_detail(
+        &self,
+        browser: &headless_chrome::Browser,
+        url: &str,
+    ) -> Result<(Option<String>, Option<String>)> {
+        let tab = browser.new_tab()?;
+
+        tab.navigate_to(url)?;
+        tab.wait_for_element("body")?;
+        std::thread::sleep(Duration::from_secs(2));
+
+        let html = tab.get_content()?;
+
+        let deadline = self.extract_deadline(&html);
+        let location = self.extract_location(&html);
+
+        std::thread::sleep(Duration::from_secs(1));
+
+        Ok((deadline, location))
     }
 
     fn extract_deadline(&self, html: &str) -> Option<String> {
@@ -199,6 +208,6 @@ impl JobDetailCrawler for WantedClient {
 
 impl Default for WantedClient {
     fn default() -> Self {
-        Self::new(4)
+        Self::new(4, JobCategory::Development, JobSubcategory::Frontend)
     }
 }

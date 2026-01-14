@@ -1,5 +1,17 @@
 use serde::Serialize;
 
+#[repr(u32)]
+#[derive(Debug, Clone, Copy)]
+pub enum JobCategory {
+    Development = 518,
+}
+
+#[repr(u32)]
+#[derive(Debug, Clone, Copy)]
+pub enum JobSubcategory {
+    Frontend = 669,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Job {
     pub title: String,

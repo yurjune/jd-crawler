@@ -27,29 +27,29 @@ pub trait JobCrawler {
 }
 
 pub trait JobListCrawler: JobCrawler {
-    fn fetch_all_jobs(&self, url: &str, max_scroll: usize) -> Result<Vec<Job>> {
-        println!("요청 URL: {}", url);
-
+    fn fetch_all_jobs(&self, url: &str, total_pages: usize) -> Result<Vec<Job>> {
         let browser = self.create_browser("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")?;
         let tab = browser.new_tab()?;
         tab.navigate_to(url)?;
 
         self.wait_for_page_load(&tab)?;
 
-        let jobs = self.collect_all_jobs_with_scroll(&tab, max_scroll)?;
-        println!("\n✅ 최종 {}개 채용공고 수집 완료", jobs.len());
-
+        let jobs = self.collect_all_jobs_with_pagination(&tab, total_pages)?;
         Ok(jobs)
     }
 
     fn parse_all_jobs(&self, html: &str) -> Result<Vec<Job>>;
 
-    fn collect_all_jobs_with_scroll(&self, tab: &Arc<Tab>, max_scroll: usize) -> Result<Vec<Job>> {
+    fn collect_all_jobs_with_pagination(
+        &self,
+        tab: &Arc<Tab>,
+        total_pages: usize,
+    ) -> Result<Vec<Job>> {
         let mut seen_url = HashSet::new();
         let mut all_jobs = Vec::new();
         let mut no_new_count = 0;
 
-        for scroll_count in 0..=max_scroll {
+        for current_page in 1..=total_pages {
             let html = tab.get_content()?;
             let new_jobs = self.parse_all_jobs(&html)?;
 
@@ -64,8 +64,8 @@ pub trait JobListCrawler: JobCrawler {
             no_new_count = if new_count == 0 { no_new_count + 1 } else { 0 };
 
             println!(
-                "스크롤 {}: 신규 {}개, 총 {}개 수집",
-                scroll_count + 1,
+                "페이지 {}: 신규 {}개, 총 {}개 수집",
+                current_page,
                 new_count,
                 all_jobs.len()
             );
@@ -75,7 +75,7 @@ pub trait JobListCrawler: JobCrawler {
                 break;
             }
 
-            if scroll_count < max_scroll {
+            if current_page < total_pages + 1 {
                 self.scroll_down(tab)?;
             }
         }
@@ -85,7 +85,11 @@ pub trait JobListCrawler: JobCrawler {
 }
 
 pub trait JobDetailCrawler {
-    fn fetch_job_detail(&self, url: &str) -> Result<(Option<String>, Option<String>)>;
+    fn fetch_job_detail(
+        &self,
+        browser: &headless_chrome::Browser,
+        url: &str,
+    ) -> Result<(Option<String>, Option<String>)>;
 
     fn extract_deadline(&self, html: &str) -> Option<String>;
 
