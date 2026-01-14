@@ -1,6 +1,8 @@
 use crate::{Job, Result};
-use headless_chrome::{Browser, LaunchOptions};
+use headless_chrome::{Browser, LaunchOptions, Tab};
 use scraper::{Html, Selector};
+use std::collections::HashSet;
+use std::sync::Arc;
 use std::time::Duration;
 
 const JOB_CATEGORY_DEVELOPMENT: u32 = 518;
@@ -18,44 +20,96 @@ impl WantedClient {
     }
 
     pub fn fetch_frontend_jobs(&self, min_years: u8, max_years: u8) -> Result<Vec<Job>> {
-        let url = format!(
-            "{}/wdlist/{}/{}?country=kr&job_sort=job.recommend_order&years={}&years={}&locations=all",
-            self.base_url, JOB_CATEGORY_DEVELOPMENT, JOB_SUBCATEGORY_FRONTEND, min_years, max_years
-        );
-
+        let url = self.build_url(min_years, max_years);
         println!("요청 URL: {}", url);
 
-        // Pretend like a real user to avoid bot detection
-        let user_agent = std::ffi::OsString::from(
-            "--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        );
-        // Hide webdriver flag to avoid bot detection
-        let disable_auto =
-            std::ffi::OsString::from("--disable-blink-features=AutomationControlled");
-
-        let browser = Browser::new(LaunchOptions {
-            headless: true,
-            args: vec![&user_agent, &disable_auto],
-            ..Default::default()
-        })?;
-
+        let browser = self.create_browser()?;
         let tab = browser.new_tab()?;
-
         tab.navigate_to(&url)?;
-        tab.wait_for_element("body")?;
 
-        // Wait for job list container to appear
-        println!("페이지 로딩 대기 중...");
-        tab.wait_for_element(r#"[data-cy="job-list"]"#)?;
+        self.wait_for_page_load(&tab)?;
 
-        // Extra wait for dynamic content
-        std::thread::sleep(Duration::from_secs(3));
+        let jobs = self.collect_all_jobs_with_scroll(&tab)?;
+        println!("\n✅ 최종 {}개 채용공고 수집 완료", jobs.len());
 
-        let html = tab.get_content()?;
-
-        // Parse HTML and extract jobs
-        let jobs = self.parse_jobs(&html)?;
         Ok(jobs)
+    }
+
+    fn build_url(&self, min_years: u8, max_years: u8) -> String {
+        format!(
+            "{}/wdlist/{}/{}?country=kr&job_sort=job.recommend_order&years={}&years={}&locations=all",
+            self.base_url, JOB_CATEGORY_DEVELOPMENT, JOB_SUBCATEGORY_FRONTEND, min_years, max_years
+        )
+    }
+
+    fn create_browser(&self) -> Result<Browser> {
+        Browser::new(LaunchOptions {
+            headless: true,
+            args: vec![
+                &std::ffi::OsString::from("--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
+                &std::ffi::OsString::from("--disable-blink-features=AutomationControlled"),
+            ],
+            ..Default::default()
+        })
+        .map_err(Into::into)
+    }
+
+    fn wait_for_page_load(&self, tab: &Arc<Tab>) -> Result<()> {
+        println!("페이지 로딩 대기 중...");
+        tab.wait_for_element("body")?;
+        tab.wait_for_element(r#"[data-cy="job-list"]"#)?;
+        std::thread::sleep(Duration::from_secs(3));
+        Ok(())
+    }
+
+    fn collect_all_jobs_with_scroll(&self, tab: &Arc<Tab>) -> Result<Vec<Job>> {
+        let mut seen = HashSet::new();
+        let mut all_jobs = Vec::new();
+        let mut no_new_count = 0;
+
+        for scroll_count in 0..50 {
+            let new_jobs = self.fetch_and_scroll(tab, scroll_count)?;
+            let unique_jobs: Vec<_> = new_jobs
+                .into_iter()
+                .filter(|job| seen.insert(job.url.clone()))
+                .collect();
+
+            let new_count = unique_jobs.len();
+            all_jobs.extend(unique_jobs);
+
+            no_new_count = if new_count == 0 { no_new_count + 1 } else { 0 };
+
+            println!(
+                "스크롤 {}: 신규 {}개, 총 {}개 수집",
+                scroll_count + 1,
+                new_count,
+                all_jobs.len()
+            );
+
+            if no_new_count >= 2 {
+                println!("더 이상 새 데이터 없음 ({}번 연속)", no_new_count);
+                break;
+            }
+        }
+
+        Ok(all_jobs)
+    }
+
+    fn fetch_and_scroll(&self, tab: &Arc<Tab>, scroll_count: usize) -> Result<Vec<Job>> {
+        let html = tab.get_content()?;
+        let jobs = self.parse_jobs(&html)?;
+
+        if scroll_count < 49 {
+            self.scroll_down(tab)?;
+        }
+
+        Ok(jobs)
+    }
+
+    fn scroll_down(&self, tab: &Arc<Tab>) -> Result<()> {
+        tab.evaluate("window.scrollTo(0, document.body.scrollHeight)", false)?;
+        std::thread::sleep(Duration::from_secs(2));
+        Ok(())
     }
 
     fn parse_jobs(&self, html: &str) -> Result<Vec<Job>> {
