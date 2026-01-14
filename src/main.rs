@@ -1,4 +1,4 @@
-use jd_crawler::{Result, WantedClient};
+use jd_crawler::{save_to_csv, Result, WantedClient};
 
 fn main() -> Result<()> {
     println!("=== Wanted 프론트엔드 채용공고 크롤러 ===\n");
@@ -10,13 +10,9 @@ fn main() -> Result<()> {
 
     println!("\n✅ 총 {}개의 채용공고를 찾았습니다.\n", jobs.len());
 
-    for (i, job) in jobs.iter().enumerate() {
-        println!("{}. {}", i + 1, job.title);
-        println!("회사: {}", job.company);
-        println!("경력: {}", job.experience_years);
-        println!("URL: {}", job.url);
-        println!();
-    }
+    let csv_path = "jobs.csv";
+    save_to_csv(&jobs, csv_path)?;
+    println!("CSV 파일 저장 완료: {}", csv_path);
 
     Ok(())
 }
