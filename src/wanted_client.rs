@@ -59,22 +59,15 @@ impl WantedClient {
 
         let jobs_with_details: Vec<Job> = pool.install(|| {
             jobs.par_iter()
-                .enumerate()
-                .map(|(idx, job)| {
+                .map(|job| {
                     let thread_id = std::thread::current().id();
                     match self.fetch_job_detail(&browser, &job.url) {
                         Ok((deadline, location)) => {
-                            println!(
-                                "[{:?}] [{}/{}] 완료: {}",
-                                thread_id, idx, job_counts, job.title
-                            );
+                            println!("[{:?}] 완료: {}", thread_id, job.title);
                             job.clone().with_details(deadline, location)
                         }
                         Err(e) => {
-                            eprintln!(
-                                "[{:?}] [{}/{}] 실패 ({}): {}",
-                                thread_id, idx, job_counts, job.title, e
-                            );
+                            eprintln!("[{:?}] 실패 ({}): {}", thread_id, job.title, e);
                             job.clone()
                         }
                     }
