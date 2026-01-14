@@ -6,11 +6,17 @@ fn main() -> Result<()> {
     let client = WantedClient::new();
 
     println!("프론트엔드 0~5년차 공고 조회 중...");
-    let html = client.fetch_frontend_jobs(0, 5)?;
+    let jobs = client.fetch_frontend_jobs(0, 5)?;
 
-    println!("\n✅ HTML 수신 완료 ({} bytes)", html.len());
-    println!("\n=== HTML 샘플 (처음 2000자) ===");
-    println!("{}", &html[..html.len().min(2000)]);
+    println!("\n✅ 총 {}개의 채용공고를 찾았습니다.\n", jobs.len());
+
+    for (i, job) in jobs.iter().enumerate() {
+        println!("{}. {}", i + 1, job.title);
+        println!("회사: {}", job.company);
+        println!("경력: {}", job.experience_years);
+        println!("URL: {}", job.url);
+        println!();
+    }
 
     Ok(())
 }

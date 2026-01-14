@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 headless_chrome = "1.0"
+scraper = "0.20"
