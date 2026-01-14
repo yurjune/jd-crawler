@@ -1,5 +1,5 @@
 use crate::crawler::{JobCrawler, JobDetailCrawler, JobListCrawler};
-use crate::models::{JobCategory, JobSubcategory};
+use crate::models::{CrawlConfig, JobCategory, JobSubcategory};
 use crate::{Job, Result};
 use headless_chrome::Tab;
 use rayon::ThreadPoolBuilder;
@@ -8,53 +8,44 @@ use scraper::{Html, Selector};
 use std::sync::Arc;
 use std::time::Duration;
 
-const DEFAULT_MIN_YEARS: u8 = 0;
-const DEFAULT_MAX_YEARS: u8 = 5;
-
 pub struct WantedClient {
     base_url: String,
-    num_threads: usize,
     category: JobCategory,
     subcategory: JobSubcategory,
-    min_years: u8,
-    max_years: u8,
 }
 
 impl WantedClient {
-    pub fn new(num_threads: usize, category: JobCategory, subcategory: JobSubcategory) -> Self {
+    pub fn new(category: JobCategory, subcategory: JobSubcategory) -> Self {
         Self {
             base_url: "https://www.wanted.co.kr".to_string(),
-            num_threads,
             category,
             subcategory,
-            min_years: DEFAULT_MIN_YEARS,
-            max_years: DEFAULT_MAX_YEARS,
         }
     }
 
-    fn build_url(&self) -> String {
+    fn build_url(&self, config: &CrawlConfig) -> String {
         format!(
             "{}/wdlist/{}/{}?country=kr&job_sort=job.recommend_order&years={}&years={}&locations=all",
             self.base_url,
             self.category as u32,
             self.subcategory as u32,
-            self.min_years,
-            self.max_years
+            config.min_years,
+            config.max_years
         )
     }
 
-    pub fn start_crawl(&self, total_pages: usize) -> Result<Vec<Job>> {
-        let url = self.build_url();
+    pub fn start_crawl(&self, config: CrawlConfig) -> Result<Vec<Job>> {
+        let url = self.build_url(&config);
         let browser = self.create_browser()?;
 
-        println!("프론트엔드 0~5년차 채용공고 목록 수집 시작...");
-        let jobs = self.fetch_all_jobs(&browser, &url, total_pages)?;
+        println!("채용공고 목록 수집 시작..",);
+        let jobs = self.fetch_all_jobs(&browser, &url, config.total_pages)?;
         let job_counts = jobs.len();
         println!("\n✅ 최종 {}개 채용공고 수집 완료", job_counts);
 
         println!("\n각 채용공고 상세 수집 시작...");
         let pool = ThreadPoolBuilder::new()
-            .num_threads(self.num_threads)
+            .num_threads(config.num_threads)
             .build()?;
 
         let jobs_with_details: Vec<Job> = pool.install(|| {
@@ -192,6 +183,6 @@ impl JobDetailCrawler for WantedClient {
 
 impl Default for WantedClient {
     fn default() -> Self {
-        Self::new(4, JobCategory::Development, JobSubcategory::Frontend)
+        Self::new(JobCategory::Development, JobSubcategory::Frontend)
     }
 }

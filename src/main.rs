@@ -1,8 +1,14 @@
-use jd_crawler::{JobCategory, JobSubcategory, Result, WantedClient, save_to_csv};
+use jd_crawler::{CrawlConfig, JobCategory, JobSubcategory, Result, WantedClient, save_to_csv};
 
 fn main() -> Result<()> {
-    let client = WantedClient::new(4, JobCategory::Development, JobSubcategory::Frontend);
-    let jobs = client.start_crawl(1)?;
+    let client = WantedClient::new(JobCategory::Development, JobSubcategory::Frontend);
+    let config = CrawlConfig {
+        total_pages: 1,
+        num_threads: 4,
+        min_years: 0,
+        max_years: 5,
+    };
+    let jobs = client.start_crawl(config)?;
 
     let csv_path = "wanted-frontend-jobs.csv";
     save_to_csv(&jobs, csv_path)?;
