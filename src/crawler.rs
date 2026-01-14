@@ -5,6 +5,28 @@ use std::sync::Arc;
 use std::time::Duration;
 
 pub trait JobCrawler {
+    fn create_browser(&self, user_agent: &str) -> Result<Browser> {
+        Browser::new(LaunchOptions {
+            headless: true,
+            args: vec![
+                &std::ffi::OsString::from(format!("--user-agent={}", user_agent)),
+                &std::ffi::OsString::from("--disable-blink-features=AutomationControlled"),
+            ],
+            ..Default::default()
+        })
+        .map_err(Into::into)
+    }
+
+    fn wait_for_page_load(&self, tab: &Arc<Tab>) -> Result<()>;
+
+    fn scroll_down(&self, tab: &Arc<Tab>) -> Result<()> {
+        tab.evaluate("window.scrollTo(0, document.body.scrollHeight)", false)?;
+        std::thread::sleep(Duration::from_secs(2));
+        Ok(())
+    }
+}
+
+pub trait JobListCrawler: JobCrawler {
     fn fetch_all_jobs(&self, url: &str, max_scroll: usize) -> Result<Vec<Job>> {
         println!("요청 URL: {}", url);
 
@@ -20,33 +42,7 @@ pub trait JobCrawler {
         Ok(jobs)
     }
 
-    fn create_browser(&self, user_agent: &str) -> Result<Browser> {
-        Browser::new(LaunchOptions {
-            headless: true,
-            args: vec![
-                &std::ffi::OsString::from(format!("--user-agent={}", user_agent)),
-                &std::ffi::OsString::from("--disable-blink-features=AutomationControlled"),
-            ],
-            ..Default::default()
-        })
-        .map_err(Into::into)
-    }
-
-    fn wait_for_page_load(&self, tab: &Arc<Tab>) -> Result<()>;
-
-    fn parse_jobs(&self, html: &str) -> Result<Vec<Job>>;
-
-    fn fetch_job_detail(&self, url: &str) -> Result<(Option<String>, Option<String>)>;
-
-    fn extract_deadline(&self, html: &str) -> Option<String>;
-
-    fn extract_location(&self, html: &str) -> Option<String>;
-
-    fn scroll_down(&self, tab: &Arc<Tab>) -> Result<()> {
-        tab.evaluate("window.scrollTo(0, document.body.scrollHeight)", false)?;
-        std::thread::sleep(Duration::from_secs(2));
-        Ok(())
-    }
+    fn parse_all_jobs(&self, html: &str) -> Result<Vec<Job>>;
 
     fn collect_all_jobs_with_scroll(&self, tab: &Arc<Tab>, max_scroll: usize) -> Result<Vec<Job>> {
         let mut seen_url = HashSet::new();
@@ -55,7 +51,7 @@ pub trait JobCrawler {
 
         for scroll_count in 0..=max_scroll {
             let html = tab.get_content()?;
-            let new_jobs = self.parse_jobs(&html)?;
+            let new_jobs = self.parse_all_jobs(&html)?;
 
             let unique_jobs: Vec<_> = new_jobs
                 .into_iter()
@@ -86,4 +82,12 @@ pub trait JobCrawler {
 
         Ok(all_jobs)
     }
+}
+
+pub trait JobDetailCrawler {
+    fn fetch_job_detail(&self, url: &str) -> Result<(Option<String>, Option<String>)>;
+
+    fn extract_deadline(&self, html: &str) -> Option<String>;
+
+    fn extract_location(&self, html: &str) -> Option<String>;
 }

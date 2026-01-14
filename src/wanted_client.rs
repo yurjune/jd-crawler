@@ -1,4 +1,4 @@
-use crate::crawler::JobCrawler;
+use crate::crawler::{JobCrawler, JobDetailCrawler, JobListCrawler};
 use crate::user_agent::get_random_user_agent;
 use crate::{Job, Result};
 use headless_chrome::Tab;
@@ -22,6 +22,13 @@ impl WantedClient {
             base_url: "https://www.wanted.co.kr".to_string(),
             num_threads,
         }
+    }
+
+    fn build_url(&self, min_years: u8, max_years: u8) -> String {
+        format!(
+            "{}/wdlist/{}/{}?country=kr&job_sort=job.recommend_order&years={}&years={}&locations=all",
+            self.base_url, JOB_CATEGORY_DEVELOPMENT, JOB_SUBCATEGORY_FRONTEND, min_years, max_years
+        )
     }
 
     pub fn fetch_frontend_jobs(
@@ -58,7 +65,7 @@ impl WantedClient {
                         Ok((deadline, location)) => {
                             println!("[{:?}] [{}] 완료: {}", thread_id, idx, job.title);
                             job.clone().with_details(deadline, location)
-                        },
+                        }
                         Err(e) => {
                             eprintln!("[{:?}] [{}] 실패 ({}): {}", thread_id, idx, job.title, e);
                             job.clone()
@@ -71,15 +78,6 @@ impl WantedClient {
         Ok(jobs_with_details)
     }
 
-    fn build_url(&self, min_years: u8, max_years: u8) -> String {
-        format!(
-            "{}/wdlist/{}/{}?country=kr&job_sort=job.recommend_order&years={}&years={}&locations=all",
-            self.base_url, JOB_CATEGORY_DEVELOPMENT, JOB_SUBCATEGORY_FRONTEND, min_years, max_years
-        )
-    }
-}
-
-impl WantedClient {
     fn fetch_job_detail_with_browser(
         &self,
         browser: &headless_chrome::Browser,
@@ -110,8 +108,10 @@ impl JobCrawler for WantedClient {
         std::thread::sleep(Duration::from_secs(3));
         Ok(())
     }
+}
 
-    fn parse_jobs(&self, html: &str) -> Result<Vec<Job>> {
+impl JobListCrawler for WantedClient {
+    fn parse_all_jobs(&self, html: &str) -> Result<Vec<Job>> {
         let document = Html::parse_document(html);
 
         let body_selector = Selector::parse(r#"div[class*="JobCard_JobCard__body__"]"#).unwrap();
@@ -158,7 +158,9 @@ impl JobCrawler for WantedClient {
 
         Ok(jobs)
     }
+}
 
+impl JobDetailCrawler for WantedClient {
     fn fetch_job_detail(&self, url: &str) -> Result<(Option<String>, Option<String>)> {
         let thread_id = std::thread::current().id();
         let user_agent = get_random_user_agent(thread_id);

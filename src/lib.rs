@@ -4,7 +4,7 @@ pub mod user_agent;
 pub mod wanted_client;
 pub mod writer;
 
-pub use crawler::JobCrawler;
+pub use crawler::{JobCrawler, JobListCrawler, JobDetailCrawler};
 pub use models::Job;
 pub use wanted_client::WantedClient;
 pub use writer::save_to_csv;
