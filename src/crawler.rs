@@ -5,26 +5,26 @@ use std::sync::Arc;
 use std::time::Duration;
 
 pub trait JobCrawler {
-    fn fetch_all_jobs(&self, url: &str) -> Result<Vec<Job>> {
+    fn fetch_all_jobs(&self, url: &str, max_scroll: usize) -> Result<Vec<Job>> {
         println!("요청 URL: {}", url);
 
-        let browser = self.create_browser()?;
+        let browser = self.create_browser("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")?;
         let tab = browser.new_tab()?;
         tab.navigate_to(url)?;
 
         self.wait_for_page_load(&tab)?;
 
-        let jobs = self.collect_all_jobs_with_scroll(&tab)?;
+        let jobs = self.collect_all_jobs_with_scroll(&tab, max_scroll)?;
         println!("\n✅ 최종 {}개 채용공고 수집 완료", jobs.len());
 
         Ok(jobs)
     }
 
-    fn create_browser(&self) -> Result<Browser> {
+    fn create_browser(&self, user_agent: &str) -> Result<Browser> {
         Browser::new(LaunchOptions {
             headless: true,
             args: vec![
-                &std::ffi::OsString::from("--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
+                &std::ffi::OsString::from(format!("--user-agent={}", user_agent)),
                 &std::ffi::OsString::from("--disable-blink-features=AutomationControlled"),
             ],
             ..Default::default()
@@ -36,18 +36,24 @@ pub trait JobCrawler {
 
     fn parse_jobs(&self, html: &str) -> Result<Vec<Job>>;
 
+    fn fetch_job_detail(&self, url: &str) -> Result<(Option<String>, Option<String>)>;
+
+    fn extract_deadline(&self, html: &str) -> Option<String>;
+
+    fn extract_location(&self, html: &str) -> Option<String>;
+
     fn scroll_down(&self, tab: &Arc<Tab>) -> Result<()> {
         tab.evaluate("window.scrollTo(0, document.body.scrollHeight)", false)?;
         std::thread::sleep(Duration::from_secs(2));
         Ok(())
     }
 
-    fn collect_all_jobs_with_scroll(&self, tab: &Arc<Tab>) -> Result<Vec<Job>> {
+    fn collect_all_jobs_with_scroll(&self, tab: &Arc<Tab>, max_scroll: usize) -> Result<Vec<Job>> {
         let mut seen_url = HashSet::new();
         let mut all_jobs = Vec::new();
         let mut no_new_count = 0;
 
-        for scroll_count in 0..50 {
+        for scroll_count in 0..=max_scroll {
             let html = tab.get_content()?;
             let new_jobs = self.parse_jobs(&html)?;
 
@@ -73,7 +79,7 @@ pub trait JobCrawler {
                 break;
             }
 
-            if scroll_count < 49 {
+            if scroll_count < max_scroll {
                 self.scroll_down(tab)?;
             }
         }

@@ -6,6 +6,8 @@ pub struct Job {
     pub company: String,
     pub experience_years: String,
     pub url: String,
+    pub deadline: Option<String>,
+    pub location: Option<String>,
 }
 
 impl Job {
@@ -15,6 +17,14 @@ impl Job {
             company,
             experience_years,
             url,
+            deadline: None,
+            location: None,
         }
+    }
+
+    pub fn with_details(mut self, deadline: Option<String>, location: Option<String>) -> Self {
+        self.deadline = deadline;
+        self.location = location;
+        self
     }
 }

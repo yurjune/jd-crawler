@@ -1,5 +1,6 @@
 pub mod crawler;
 pub mod models;
+pub mod user_agent;
 pub mod wanted_client;
 pub mod writer;
 
