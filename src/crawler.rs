@@ -5,7 +5,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 pub trait JobCrawler {
-    fn create_browser(&self, user_agent: &str) -> Result<Browser> {
+    fn create_browser(&self) -> Result<Browser> {
+        let user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
         Browser::new(LaunchOptions {
             headless: true,
             args: vec![
@@ -27,8 +28,12 @@ pub trait JobCrawler {
 }
 
 pub trait JobListCrawler: JobCrawler {
-    fn fetch_all_jobs(&self, url: &str, total_pages: usize) -> Result<Vec<Job>> {
-        let browser = self.create_browser("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")?;
+    fn fetch_all_jobs(
+        &self,
+        browser: &headless_chrome::Browser,
+        url: &str,
+        total_pages: usize,
+    ) -> Result<Vec<Job>> {
         let tab = browser.new_tab()?;
         tab.navigate_to(url)?;
 

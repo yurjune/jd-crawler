@@ -1,6 +1,5 @@
 use crate::crawler::{JobCrawler, JobDetailCrawler, JobListCrawler};
 use crate::models::{JobCategory, JobSubcategory};
-use crate::user_agent::get_random_user_agent;
 use crate::{Job, Result};
 use headless_chrome::Tab;
 use rayon::ThreadPoolBuilder;
@@ -46,21 +45,14 @@ impl WantedClient {
 
     pub fn start_crawl(&self, total_pages: usize) -> Result<Vec<Job>> {
         let url = self.build_url();
+        let browser = self.create_browser()?;
 
         println!("프론트엔드 0~5년차 채용공고 목록 수집 시작...");
-        let jobs = self.fetch_all_jobs(&url, total_pages)?;
+        let jobs = self.fetch_all_jobs(&browser, &url, total_pages)?;
         let job_counts = jobs.len();
         println!("\n✅ 최종 {}개 채용공고 수집 완료", job_counts);
 
         println!("\n각 채용공고 상세 수집 시작...");
-        let browsers: Vec<_> = (0..self.num_threads)
-            .map(|_| {
-                let thread_id = std::thread::current().id();
-                let user_agent = get_random_user_agent(thread_id);
-                self.create_browser(user_agent)
-            })
-            .collect::<Result<Vec<_>>>()?;
-
         let pool = ThreadPoolBuilder::new()
             .num_threads(self.num_threads)
             .build()?;
@@ -70,8 +62,7 @@ impl WantedClient {
                 .enumerate()
                 .map(|(idx, job)| {
                     let thread_id = std::thread::current().id();
-                    let browser = &browsers[idx % self.num_threads];
-                    match self.fetch_job_detail(browser, &job.url) {
+                    match self.fetch_job_detail(&browser, &job.url) {
                         Ok((deadline, location)) => {
                             println!(
                                 "[{:?}] [{}/{}] 완료: {}",
