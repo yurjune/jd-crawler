@@ -43,14 +43,18 @@ pub struct SaraminClient {
 impl SaraminClient {
     pub fn new(category: SaraminJobCategory) -> Self {
         Self {
-            base_url: "https://www.saramin.co.kr/zf_user/search/recruit".to_string(),
+            base_url: "https://www.saramin.co.kr".to_string(),
             category,
         }
     }
 
     pub fn start_crawl(&self, config: SaraminCrawlConfig) -> Result<Vec<Job>> {
         let browser = self.create_browser()?;
-        let refined_url = format!("{}?searchword={}", self.base_url, self.category.to_word());
+        let refined_url = format!(
+            "{}/zf_user/search/recruit?searchword={}",
+            self.base_url,
+            self.category.to_word()
+        );
 
         println!("사람인 채용공고 목록 수집 시작..",);
         let jobs = self.fetch_all_jobs(
@@ -158,7 +162,7 @@ impl JobFieldExtractor for SaraminClient {
         let title_el = fragment.select(&job_title_selector).next()?;
         let link = title_el.select(&anchor_selector).next()?;
         let href = link.value().attr("href")?;
-        let url = format!("https://www.saramin.co.kr{}", href);
+        let url = format!("{}{}", self.base_url, href);
         Some(url)
     }
 
