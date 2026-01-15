@@ -128,6 +128,12 @@ impl JobListCrawler for WantedClient {
 
         Ok(jobs)
     }
+
+    fn go_next_page(&self, tab: &Arc<Tab>) -> Result<()> {
+        tab.evaluate("window.scrollTo(0, document.body.scrollHeight)", false)?;
+        std::thread::sleep(Duration::from_secs(2));
+        Ok(())
+    }
 }
 
 impl JobDetailCrawler for WantedClient {

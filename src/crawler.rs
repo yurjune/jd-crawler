@@ -2,7 +2,6 @@ use crate::{Job, Result};
 use headless_chrome::{Browser, LaunchOptions, Tab};
 use std::collections::HashSet;
 use std::sync::Arc;
-use std::time::Duration;
 
 pub trait JobCrawler {
     fn create_browser(&self) -> Result<Browser> {
@@ -19,12 +18,6 @@ pub trait JobCrawler {
     }
 
     fn wait_for_page_load(&self, tab: &Arc<Tab>) -> Result<()>;
-
-    fn scroll_down(&self, tab: &Arc<Tab>) -> Result<()> {
-        tab.evaluate("window.scrollTo(0, document.body.scrollHeight)", false)?;
-        std::thread::sleep(Duration::from_secs(2));
-        Ok(())
-    }
 }
 
 pub trait JobListCrawler: JobCrawler {
@@ -44,6 +37,8 @@ pub trait JobListCrawler: JobCrawler {
     }
 
     fn parse_all_jobs(&self, html: &str) -> Result<Vec<Job>>;
+
+    fn go_next_page(&self, tab: &Arc<Tab>) -> Result<()>;
 
     fn collect_all_jobs_with_pagination(
         &self,
@@ -80,8 +75,8 @@ pub trait JobListCrawler: JobCrawler {
                 break;
             }
 
-            if current_page < total_pages + 1 {
-                self.scroll_down(tab)?;
+            if current_page < total_pages {
+                self.go_next_page(tab)?;
             }
         }
 
