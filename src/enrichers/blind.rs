@@ -3,8 +3,8 @@ use scraper::{Html, Selector};
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::enricher::JobEnricher;
 use crate::JobCrawler;
-use crate::enrichers::job_enricher::JobEnricher;
 use crate::{Job, Result};
 use regex::Regex;
 

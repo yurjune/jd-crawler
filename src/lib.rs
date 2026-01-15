@@ -1,5 +1,6 @@
 pub mod clients;
 pub mod crawler;
+pub mod enricher;
 pub mod enrichers;
 pub mod models;
 pub mod writer;
@@ -9,7 +10,8 @@ pub use clients::{
     WantedJobCategory, WantedJobSubcategory,
 };
 pub use crawler::{JobCrawler, JobListInfiniteScrollCrawler, JobListPaginatedCrawler};
-pub use enrichers::{BlindEnricher, JobEnricher};
+pub use enricher::JobEnricher;
+pub use enrichers::BlindEnricher;
 pub use models::Job;
 pub use writer::save_to_csv;
 
