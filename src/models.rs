@@ -1,21 +1,5 @@
 use serde::Serialize;
 
-#[repr(u32)]
-#[derive(Debug, Clone, Copy)]
-pub enum JobCategory {
-    Development = 518,
-}
-
-#[repr(u32)]
-#[derive(Debug, Clone, Copy)]
-pub enum JobSubcategory {
-    Frontend = 669,
-    Backend = 872,
-    Web = 873,
-    Android = 677,
-    IOS = 678,
-}
-
 #[derive(Debug, Clone)]
 pub struct CrawlConfig {
     /// 크롤링할 페이지 수

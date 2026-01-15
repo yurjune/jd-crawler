@@ -1,5 +1,5 @@
 use crate::crawler::{JobCrawler, JobDetailCrawler, JobListCrawler};
-use crate::models::{CrawlConfig, JobCategory, JobSubcategory};
+use crate::models::CrawlConfig;
 use crate::{Job, Result};
 use headless_chrome::Tab;
 use rayon::ThreadPoolBuilder;
@@ -8,14 +8,48 @@ use scraper::{Html, Selector};
 use std::sync::Arc;
 use std::time::Duration;
 
+#[derive(Debug, Clone, Copy)]
+pub enum WantedJobCategory {
+    Development,
+}
+
+impl WantedJobCategory {
+    pub fn to_code(&self) -> u32 {
+        match self {
+            Self::Development => 518,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum WantedJobSubcategory {
+    Frontend,
+    Backend,
+    Web,
+    Android,
+    IOS,
+}
+
+impl WantedJobSubcategory {
+    pub fn to_code(&self) -> u32 {
+        match self {
+            Self::Frontend => 669,
+            Self::Backend => 872,
+            Self::Web => 873,
+            Self::Android => 677,
+            Self::IOS => 678,
+        }
+    }
+}
+
 pub struct WantedClient {
     base_url: String,
-    category: JobCategory,
-    subcategory: JobSubcategory,
+    category: WantedJobCategory,
+    subcategory: WantedJobSubcategory,
 }
 
 impl WantedClient {
-    pub fn new(category: JobCategory, subcategory: JobSubcategory) -> Self {
+    pub fn new(category: WantedJobCategory, subcategory: WantedJobSubcategory) -> Self {
         Self {
             base_url: "https://www.wanted.co.kr".to_string(),
             category,
@@ -27,8 +61,8 @@ impl WantedClient {
         format!(
             "{}/wdlist/{}/{}?country=kr&job_sort=job.recommend_order&years={}&years={}&locations=all",
             self.base_url,
-            self.category as u32,
-            self.subcategory as u32,
+            self.category.to_code(),
+            self.subcategory.to_code(),
             config.min_years,
             config.max_years
         )
@@ -189,6 +223,9 @@ impl JobDetailCrawler for WantedClient {
 
 impl Default for WantedClient {
     fn default() -> Self {
-        Self::new(JobCategory::Development, JobSubcategory::Frontend)
+        Self::new(
+            WantedJobCategory::Development,
+            WantedJobSubcategory::Frontend,
+        )
     }
 }
