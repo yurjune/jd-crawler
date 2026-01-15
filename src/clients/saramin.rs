@@ -65,8 +65,12 @@ impl SaraminClient {
 }
 
 impl JobCrawler for SaraminClient {
-    fn wait_for_page_load(&self, tab: &Arc<Tab>) -> Result<()> {
+    fn wait_for_list_page_load(&self, tab: &Arc<Tab>) -> Result<()> {
         tab.wait_for_element(r"#recruit_info_list")?;
+        Ok(())
+    }
+
+    fn wait_for_detail_page_load(&self, _tab: &Arc<Tab>) -> Result<()> {
         Ok(())
     }
 }

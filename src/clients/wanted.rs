@@ -136,7 +136,7 @@ impl WantedClient {
         let tab = browser.new_tab()?;
 
         tab.navigate_to(url)?;
-        tab.wait_for_element("body")?;
+        self.wait_for_detail_page_load(&tab)?;
         std::thread::sleep(Duration::from_secs(2));
 
         let html = tab.get_content()?;
@@ -151,8 +151,13 @@ impl WantedClient {
 }
 
 impl JobCrawler for WantedClient {
-    fn wait_for_page_load(&self, tab: &Arc<Tab>) -> Result<()> {
-        tab.wait_for_element(r#"[data-cy="job-list"]"#)?;
+    fn wait_for_list_page_load(&self, tab: &Arc<Tab>) -> Result<()> {
+        tab.wait_for_element(r#"div[class*="JobCard_JobCard__body__"]"#)?;
+        Ok(())
+    }
+
+    fn wait_for_detail_page_load(&self, tab: &Arc<Tab>) -> Result<()> {
+        tab.wait_for_element("body")?;
         Ok(())
     }
 }

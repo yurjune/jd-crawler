@@ -19,7 +19,8 @@ pub trait JobCrawler {
         .map_err(Into::into)
     }
 
-    fn wait_for_page_load(&self, tab: &Arc<Tab>) -> Result<()>;
+    fn wait_for_list_page_load(&self, tab: &Arc<Tab>) -> Result<()>;
+    fn wait_for_detail_page_load(&self, tab: &Arc<Tab>) -> Result<()>;
 }
 
 pub trait JobListInfiniteScrollCrawler: JobCrawler {
@@ -35,7 +36,7 @@ pub trait JobListInfiniteScrollCrawler: JobCrawler {
     ) -> Result<Vec<Job>> {
         let tab = browser.new_tab()?;
         tab.navigate_to(url)?;
-        self.wait_for_page_load(&tab)?;
+        self.wait_for_list_page_load(&tab)?;
 
         let mut seen_url = HashSet::new();
         let mut all_jobs = Vec::new();
@@ -103,7 +104,7 @@ pub trait JobListPaginatedCrawler: JobCrawler + Sync {
                     .filter_map(|&page_num| {
                         let url = self.build_page_url(url, page_num);
                         tab.navigate_to(&url).ok()?;
-                        self.wait_for_page_load(&tab).ok()?;
+                        self.wait_for_list_page_load(&tab).ok()?;
 
                         let html = tab.get_content().ok()?;
                         let page_jobs = self.parse_job(&html).ok()?;
