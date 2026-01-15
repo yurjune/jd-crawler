@@ -109,7 +109,7 @@ pub trait JobListPaginatedCrawler: JobCrawler + Sync {
                         let html = tab.get_content().ok()?;
                         let page_jobs = self.parse_job(&html).ok()?;
 
-                        println!("[{:?}] 페이지 {} 완료", sys_thread_id, page_num);
+                        println!("[{:?}] 완료: 페이지 {}", sys_thread_id, page_num);
                         Some(page_jobs)
                     })
                     .flatten()
