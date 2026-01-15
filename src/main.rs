@@ -13,6 +13,7 @@ fn main() -> Result<()> {
         num_threads: 4,
         min_years: 0,
         max_years: 5,
+        full_crawl: false,
     })?;
     let csv_path = "wanted-frontend-jobs.csv";
     save_to_csv(&jobs, csv_path)?;

@@ -17,6 +17,8 @@ pub struct WantedCrawlConfig {
     pub min_years: u8,
     /// 최대 경력 (년)
     pub max_years: u8,
+    /// 각 상세 페이지 추가 크롤링
+    pub full_crawl: bool,
 }
 
 impl Default for WantedCrawlConfig {
@@ -26,6 +28,7 @@ impl Default for WantedCrawlConfig {
             num_threads: 4,
             min_years: 0,
             max_years: 5,
+            full_crawl: true,
         }
     }
 }
@@ -98,6 +101,10 @@ impl WantedClient {
         let jobs = self.fetch_all_jobs(&browser, &url, config.total_pages)?;
         let job_counts = jobs.len();
         println!("\n✅ 최종 {}개 채용공고 수집 완료", job_counts);
+
+        if !config.full_crawl {
+            return Ok(jobs);
+        }
 
         println!("\n각 채용공고 상세 수집 시작...");
         let pool = ThreadPoolBuilder::new()
