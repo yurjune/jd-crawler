@@ -3,8 +3,8 @@ use scraper::{Html, Selector};
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::enricher::JobEnricher;
 use crate::JobCrawler;
+use crate::enricher::JobEnricher;
 use crate::{Job, Result};
 use regex::Regex;
 
@@ -21,9 +21,9 @@ impl BlindEnricher {
 
     pub fn start_enrich(&self, jobs: Vec<Job>, thread_count: usize) -> Result<Vec<Job>> {
         let browser = self.create_browser()?;
-        println!("\n블라인드 평점/리뷰 수집 시작..");
+        println!("\n블라인드 평점/리뷰 개수 수집 시작..");
         let enriched_jobs = self.enrich(&browser, jobs, thread_count)?;
-        println!("\n✅ 블라인드 enrichment 완료: {}개", enriched_jobs.len());
+        println!("\n✅ 블라인드 평점/리뷰 개수 수집 완료");
         Ok(enriched_jobs)
     }
 }

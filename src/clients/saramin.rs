@@ -63,7 +63,7 @@ impl SaraminClient {
             config.total_pages,
             config.num_threads,
         )?;
-        println!("\n✅ 최종 {}개 채용공고 수집 완료", jobs.len());
+        println!("\n✅ 사람인 {}개 채용공고 수집 완료", jobs.len());
         Ok(jobs)
     }
 }

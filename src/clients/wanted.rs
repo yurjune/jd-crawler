@@ -101,14 +101,15 @@ impl WantedClient {
         println!("원티드 채용공고 목록 수집 시작..",);
         let jobs = self.fetch_all_jobs(&browser, &url, config.total_pages)?;
         let job_counts = jobs.len();
-        println!("\n✅ 최종 {}개 채용공고 수집 완료", job_counts);
+        println!("\n✅ 원티드 채용공고 {}개 수집 완료", job_counts);
 
         if !config.full_crawl {
             return Ok(jobs);
         }
 
-        println!("\n각 채용공고 상세 수집 시작...");
+        println!("\n원티드 각 상세 채용공고 수집 시작...");
         let jobs_with_details = self.fetch_all_job_detail(&browser, jobs, config.num_threads)?;
+        println!("✅ 원티드 각 상세 채용공고 수집 완료");
 
         Ok(jobs_with_details)
     }
