@@ -23,6 +23,10 @@ pub trait JobCrawler {
 }
 
 pub trait JobListInfiniteScrollCrawler: JobCrawler {
+    fn parse_all_jobs(&self, html: &str) -> Result<Vec<Job>>;
+
+    fn go_next_page(&self, tab: &Arc<Tab>) -> Result<()>;
+
     fn fetch_all_jobs(
         &self,
         browser: &headless_chrome::Browser,
@@ -31,22 +35,8 @@ pub trait JobListInfiniteScrollCrawler: JobCrawler {
     ) -> Result<Vec<Job>> {
         let tab = browser.new_tab()?;
         tab.navigate_to(url)?;
-
         self.wait_for_page_load(&tab)?;
 
-        let jobs = self.collect_all_jobs_with_pagination(&tab, total_pages)?;
-        Ok(jobs)
-    }
-
-    fn parse_all_jobs(&self, html: &str) -> Result<Vec<Job>>;
-
-    fn go_next_page(&self, tab: &Arc<Tab>) -> Result<()>;
-
-    fn collect_all_jobs_with_pagination(
-        &self,
-        tab: &Arc<Tab>,
-        total_pages: usize,
-    ) -> Result<Vec<Job>> {
         let mut seen_url = HashSet::new();
         let mut all_jobs = Vec::new();
         let mut no_new_count = 0;
@@ -78,7 +68,7 @@ pub trait JobListInfiniteScrollCrawler: JobCrawler {
             }
 
             if current_page < total_pages {
-                self.go_next_page(tab)?;
+                self.go_next_page(&tab)?;
             }
         }
 

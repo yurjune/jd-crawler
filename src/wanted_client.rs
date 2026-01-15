@@ -130,10 +130,7 @@ impl WantedClient {
 
 impl JobCrawler for WantedClient {
     fn wait_for_page_load(&self, tab: &Arc<Tab>) -> Result<()> {
-        println!("페이지 로드 대기 중...");
-        tab.wait_for_element("body")?;
         tab.wait_for_element(r#"[data-cy="job-list"]"#)?;
-        std::thread::sleep(Duration::from_secs(3));
         Ok(())
     }
 }
