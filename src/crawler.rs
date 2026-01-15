@@ -1,5 +1,6 @@
 use crate::{Job, Result};
 use headless_chrome::{Browser, LaunchOptions, Tab};
+use rayon::prelude::*;
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -82,6 +83,55 @@ pub trait JobListInfiniteScrollCrawler: JobCrawler {
 
         Ok(all_jobs)
     }
+}
+
+pub trait JobListPaginatedCrawler: JobCrawler + Sync {
+    fn build_page_url(&self, base_url: &str, page: usize) -> String;
+
+    fn fetch_all_jobs(
+        &self,
+        browser: &headless_chrome::Browser,
+        url: &str,
+        total_pages: usize,
+        num_threads: usize,
+    ) -> Result<Vec<Job>>
+    where
+        Self: Sync,
+    {
+        let all_jobs: Vec<Job> = (0..num_threads)
+            .into_par_iter()
+            .filter_map(|thread_id| {
+                let tab = browser.new_tab().ok()?;
+                let sys_thread_id = std::thread::current().id();
+
+                let pages: Vec<usize> =
+                    (thread_id + 1..=total_pages).step_by(num_threads).collect();
+
+                let jobs: Vec<Job> = pages
+                    .iter()
+                    .filter_map(|&page_num| {
+                        let url = self.build_page_url(url, page_num);
+                        tab.navigate_to(&url).ok()?;
+                        self.wait_for_page_load(&tab).ok()?;
+
+                        let html = tab.get_content().ok()?;
+                        let page_jobs = self.parse_job(&html).ok()?;
+
+                        println!("[{:?}] 페이지 {} 완료", sys_thread_id, page_num);
+                        Some(page_jobs)
+                    })
+                    .flatten()
+                    .collect();
+
+                Some(jobs)
+            })
+            .flatten()
+            .collect();
+
+        Ok(all_jobs)
+    }
+
+    fn parse_job(&self, html: &str) -> Result<Vec<Job>>;
 }
 
 pub trait JobDetailCrawler {

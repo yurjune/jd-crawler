@@ -72,7 +72,7 @@ impl WantedClient {
         let url = self.build_url(&config);
         let browser = self.create_browser()?;
 
-        println!("채용공고 목록 수집 시작..",);
+        println!("원티드 채용공고 목록 수집 시작..",);
         let jobs = self.fetch_all_jobs(&browser, &url, config.total_pages)?;
         let job_counts = jobs.len();
         println!("\n✅ 최종 {}개 채용공고 수집 완료", job_counts);
