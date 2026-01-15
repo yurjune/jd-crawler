@@ -28,9 +28,9 @@ pub struct Job {
     pub title: String,
     pub company: String,
     pub experience_years: String,
-    pub url: String,
     pub deadline: Option<String>,
     pub location: Option<String>,
+    pub url: String,
 }
 
 impl Job {
