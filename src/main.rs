@@ -1,7 +1,6 @@
-use jd_crawler::{
-    CrawlConfig, Result, SaraminClient, SaraminJobCategory, WantedClient, WantedJobCategory,
-    WantedJobSubcategory, save_to_csv,
-};
+use jd_crawler::{Result, save_to_csv};
+use jd_crawler::{SaraminClient, SaraminCrawlConfig, SaraminJobCategory};
+use jd_crawler::{WantedClient, WantedCrawlConfig, WantedJobCategory, WantedJobSubcategory};
 
 fn main() -> Result<()> {
     // Wanted
@@ -9,7 +8,7 @@ fn main() -> Result<()> {
         WantedJobCategory::Development,
         WantedJobSubcategory::Frontend,
     );
-    let jobs = client.start_crawl(CrawlConfig {
+    let jobs = client.start_crawl(WantedCrawlConfig {
         total_pages: 1,
         num_threads: 4,
         min_years: 0,
@@ -20,13 +19,12 @@ fn main() -> Result<()> {
 
     // Saramin
     let client = SaraminClient::new(SaraminJobCategory::Frontend);
-    let jobs = client.start_crawl(CrawlConfig {
-        total_pages: 12,
-        num_threads: 4,
-        min_years: 0,
-        max_years: 5,
+    let jobs = client.start_crawl(SaraminCrawlConfig {
+        total_pages: 8,
+        num_threads: 8,
     })?;
     let csv_path = "saramin-frontend-jobs.csv";
     save_to_csv(&jobs, csv_path)?;
+
     Ok(())
 }

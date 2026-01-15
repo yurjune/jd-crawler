@@ -1,5 +1,4 @@
 use crate::crawler::{JobCrawler, JobFieldExtractor, JobListInfiniteScrollCrawler};
-use crate::models::CrawlConfig;
 use crate::{Job, Result};
 use headless_chrome::Tab;
 use rayon::ThreadPoolBuilder;
@@ -7,6 +6,29 @@ use rayon::prelude::*;
 use scraper::{Html, Selector};
 use std::sync::Arc;
 use std::time::Duration;
+
+#[derive(Debug, Clone)]
+pub struct WantedCrawlConfig {
+    /// 크롤링할 페이지 수
+    pub total_pages: usize,
+    /// 병렬 처리에 사용할 스레드 개수
+    pub num_threads: usize,
+    /// 최소 경력 (년)
+    pub min_years: u8,
+    /// 최대 경력 (년)
+    pub max_years: u8,
+}
+
+impl Default for WantedCrawlConfig {
+    fn default() -> Self {
+        Self {
+            total_pages: 1,
+            num_threads: 4,
+            min_years: 0,
+            max_years: 5,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum WantedJobCategory {
@@ -57,7 +79,7 @@ impl WantedClient {
         }
     }
 
-    fn build_url(&self, config: &CrawlConfig) -> String {
+    fn build_url(&self, config: &WantedCrawlConfig) -> String {
         format!(
             "{}/wdlist/{}/{}?country=kr&job_sort=job.recommend_order&years={}&years={}&locations=all",
             self.base_url,
@@ -68,7 +90,7 @@ impl WantedClient {
         )
     }
 
-    pub fn start_crawl(&self, config: CrawlConfig) -> Result<Vec<Job>> {
+    pub fn start_crawl(&self, config: WantedCrawlConfig) -> Result<Vec<Job>> {
         let url = self.build_url(&config);
         let browser = self.create_browser()?;
 

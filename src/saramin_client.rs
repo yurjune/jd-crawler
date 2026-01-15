@@ -1,9 +1,26 @@
 use crate::Result;
 use crate::crawler::{JobCrawler, JobFieldExtractor, JobListPaginatedCrawler};
-use crate::models::{CrawlConfig, Job};
+use crate::models::Job;
 use headless_chrome::Tab;
 use scraper::{Html, Selector};
 use std::sync::Arc;
+
+#[derive(Debug, Clone)]
+pub struct SaraminCrawlConfig {
+    /// 크롤링할 페이지 수
+    pub total_pages: usize,
+    /// 병렬 처리에 사용할 스레드 개수
+    pub num_threads: usize,
+}
+
+impl Default for SaraminCrawlConfig {
+    fn default() -> Self {
+        Self {
+            total_pages: 1,
+            num_threads: 4,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum SaraminJobCategory {
@@ -31,7 +48,7 @@ impl SaraminClient {
         }
     }
 
-    pub fn start_crawl(&self, config: CrawlConfig) -> Result<Vec<Job>> {
+    pub fn start_crawl(&self, config: SaraminCrawlConfig) -> Result<Vec<Job>> {
         let browser = self.create_browser()?;
         let refined_url = format!("{}?searchword={}", self.base_url, self.category.to_word());
 
