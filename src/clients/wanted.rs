@@ -157,15 +157,12 @@ impl WantedClient {
     ) -> Result<Option<String>> {
         tab.navigate_to(url)?;
         self.wait_for_detail_page_load(tab)?;
-        std::thread::sleep(Duration::from_secs(2));
 
         let html = tab.get_content()?;
         let document = Html::parse_document(&html);
-
         let deadline = self.extract_deadline(&document);
 
-        std::thread::sleep(Duration::from_secs(1));
-
+        std::thread::sleep(Duration::from_millis(500));
         Ok(deadline)
     }
 }

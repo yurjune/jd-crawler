@@ -1,6 +1,7 @@
 use headless_chrome::Tab;
 use scraper::{Html, Selector};
 use std::sync::Arc;
+use std::time::Duration;
 
 use crate::JobCrawler;
 use crate::enrichers::job_enricher::JobEnricher;
@@ -38,9 +39,9 @@ impl JobEnricher for BlindEnricher {
         url: &str,
     ) -> Result<(Option<String>, Option<u32>)> {
         tab.navigate_to(url)?;
-        std::thread::sleep(std::time::Duration::from_secs(2));
 
         let html = tab.get_content()?;
+        std::thread::sleep(Duration::from_millis(500));
         self.parse_data(&html)
     }
 

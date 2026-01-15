@@ -6,6 +6,7 @@ use scraper::Html;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Arc;
+use std::time::Duration;
 
 pub trait JobCrawler {
     fn create_browser(&self) -> Result<Browser> {
@@ -91,6 +92,7 @@ pub trait JobListPaginatedCrawler: JobCrawler + Sync {
         tab.navigate_to(url)?;
         self.wait_for_list_page_load(tab)?;
         let html = tab.get_content()?;
+        std::thread::sleep(Duration::from_millis(500));
         self.parse_job(&html)
     }
 
