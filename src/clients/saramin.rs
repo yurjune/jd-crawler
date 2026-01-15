@@ -110,6 +110,8 @@ impl JobListPaginatedCrawler for SaraminClient {
                     url,
                     deadline,
                     location,
+                    rating: None,
+                    review_count: None,
                 }
             })
             .collect();

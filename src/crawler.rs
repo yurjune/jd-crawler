@@ -21,8 +21,13 @@ pub trait JobCrawler {
         .map_err(Into::into)
     }
 
-    fn wait_for_list_page_load(&self, tab: &Arc<Tab>) -> Result<()>;
-    fn wait_for_detail_page_load(&self, tab: &Arc<Tab>) -> Result<()>;
+    fn wait_for_list_page_load(&self, _tab: &Arc<Tab>) -> Result<()> {
+        Ok(())
+    }
+
+    fn wait_for_detail_page_load(&self, _tab: &Arc<Tab>) -> Result<()> {
+        Ok(())
+    }
 }
 
 pub trait JobListInfiniteScrollCrawler: JobCrawler {

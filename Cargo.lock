@@ -624,6 +624,7 @@ dependencies = [
  "csv",
  "headless_chrome",
  "rayon",
+ "regex",
  "scraper",
  "serde",
 ]

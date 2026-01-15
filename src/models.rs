@@ -7,5 +7,7 @@ pub struct Job {
     pub experience_years: String,
     pub deadline: String,
     pub location: String,
+    pub rating: Option<String>,
+    pub review_count: Option<u32>,
     pub url: String,
 }
