@@ -4,6 +4,7 @@ use headless_chrome::Tab;
 use rayon::ThreadPoolBuilder;
 use rayon::prelude::*;
 use scraper::{Html, Selector};
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -107,27 +108,41 @@ impl WantedClient {
         }
 
         println!("\n각 채용공고 상세 수집 시작...");
-        let pool = ThreadPoolBuilder::new()
-            .num_threads(config.num_threads)
-            .build()?;
+        let jobs_with_details = self.fetch_all_job_detail(&browser, jobs, config.num_threads)?;
+
+        Ok(jobs_with_details)
+    }
+
+    fn fetch_all_job_detail(
+        &self,
+        browser: &headless_chrome::Browser,
+        jobs: Vec<Job>,
+        num_threads: usize,
+    ) -> Result<Vec<Job>> {
+        let pool = ThreadPoolBuilder::new().num_threads(num_threads).build()?;
+
+        let mut tabs_map = HashMap::new();
+        for i in 0..num_threads {
+            tabs_map.insert(i, browser.new_tab()?);
+        }
+        let tabs = tabs_map;
 
         let jobs_with_details: Vec<Job> = pool.install(|| {
-            jobs.par_iter()
-                .map(|job| {
-                    let thread_id = std::thread::current().id();
-                    let mut job_clone = job.clone();
+            jobs.into_par_iter()
+                .map(|mut job| {
+                    let thread_index = rayon::current_thread_index().unwrap();
+                    let tab = &tabs[&thread_index];
 
-                    match self.fetch_job_detail(&browser, &job.url) {
+                    match self.fetch_job_detail(tab, &job.url) {
                         Ok(deadline) => {
-                            println!("[{:?}] 완료: {}", thread_id, job.title);
-                            job_clone.deadline = deadline.unwrap_or_default();
+                            println!("[Thread {:?}] 완료: {}", thread_index, job.title);
+                            job.deadline = deadline.unwrap_or_default();
                         }
                         Err(e) => {
-                            eprintln!("[{:?}] 실패 ({}): {}", thread_id, job.title, e);
+                            eprintln!("[Thread {:?}] 실패 ({}): {}", thread_index, job.title, e);
                         }
                     }
-
-                    job_clone
+                    job
                 })
                 .collect()
         });
@@ -137,13 +152,11 @@ impl WantedClient {
 
     fn fetch_job_detail(
         &self,
-        browser: &headless_chrome::Browser,
+        tab: &Arc<headless_chrome::Tab>,
         url: &str,
     ) -> Result<Option<String>> {
-        let tab = browser.new_tab()?;
-
         tab.navigate_to(url)?;
-        self.wait_for_detail_page_load(&tab)?;
+        self.wait_for_detail_page_load(tab)?;
         std::thread::sleep(Duration::from_secs(2));
 
         let html = tab.get_content()?;
