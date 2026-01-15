@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Default)]
 pub struct Job {
     pub title: String,
     pub company: String,
@@ -8,17 +8,4 @@ pub struct Job {
     pub deadline: String,
     pub location: String,
     pub url: String,
-}
-
-impl Job {
-    pub fn new(title: String, company: String, experience_years: String, url: String) -> Self {
-        Self {
-            title,
-            company,
-            experience_years,
-            url,
-            deadline: String::new(),
-            location: String::new(),
-        }
-    }
 }

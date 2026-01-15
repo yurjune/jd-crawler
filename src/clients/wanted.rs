@@ -181,7 +181,13 @@ impl JobListInfiniteScrollCrawler for WantedClient {
                     .map(|href| format!("{}{}", self.base_url, href))
                     .unwrap_or_default();
 
-                Job::new(title, company, experience_years, url)
+                Job {
+                    title,
+                    company,
+                    experience_years,
+                    url,
+                    ..Default::default()
+                }
             })
             .collect();
 
