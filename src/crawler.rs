@@ -135,14 +135,6 @@ pub trait JobListPaginatedCrawler: JobCrawler + Sync {
     fn parse_job(&self, html: &str) -> Result<Vec<Job>>;
 }
 
-pub trait JobDetailCrawler {
-    fn fetch_job_detail(
-        &self,
-        browser: &headless_chrome::Browser,
-        url: &str,
-    ) -> Result<(Option<String>, Option<String>)>;
-}
-
 pub trait JobFieldExtractor {
     fn extract_title(&self, fragment: &Html) -> Option<String>;
     fn extract_company(&self, fragment: &Html) -> Option<String>;

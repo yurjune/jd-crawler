@@ -4,9 +4,7 @@ pub mod saramin_client;
 pub mod wanted_client;
 pub mod writer;
 
-pub use crawler::{
-    JobCrawler, JobDetailCrawler, JobListInfiniteScrollCrawler, JobListPaginatedCrawler,
-};
+pub use crawler::{JobCrawler, JobListInfiniteScrollCrawler, JobListPaginatedCrawler};
 pub use models::{CrawlConfig, Job};
 pub use saramin_client::{SaraminClient, SaraminJobCategory};
 pub use wanted_client::{WantedClient, WantedJobCategory, WantedJobSubcategory};

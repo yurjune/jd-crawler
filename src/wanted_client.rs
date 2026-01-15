@@ -1,6 +1,4 @@
-use crate::crawler::{
-    JobCrawler, JobDetailCrawler, JobFieldExtractor, JobListInfiniteScrollCrawler,
-};
+use crate::crawler::{JobCrawler, JobFieldExtractor, JobListInfiniteScrollCrawler};
 use crate::models::CrawlConfig;
 use crate::{Job, Result};
 use headless_chrome::Tab;
@@ -91,10 +89,9 @@ impl WantedClient {
                     let mut job_clone = job.clone();
 
                     match self.fetch_job_detail(&browser, &job.url) {
-                        Ok((deadline, location)) => {
+                        Ok(deadline) => {
                             println!("[{:?}] 완료: {}", thread_id, job.title);
                             job_clone.deadline = deadline;
-                            job_clone.location = location;
                         }
                         Err(e) => {
                             eprintln!("[{:?}] 실패 ({}): {}", thread_id, job.title, e);
@@ -107,6 +104,27 @@ impl WantedClient {
         });
 
         Ok(jobs_with_details)
+    }
+
+    fn fetch_job_detail(
+        &self,
+        browser: &headless_chrome::Browser,
+        url: &str,
+    ) -> Result<Option<String>> {
+        let tab = browser.new_tab()?;
+
+        tab.navigate_to(url)?;
+        tab.wait_for_element("body")?;
+        std::thread::sleep(Duration::from_secs(2));
+
+        let html = tab.get_content()?;
+        let document = Html::parse_document(&html);
+
+        let deadline = self.extract_deadline(&document);
+
+        std::thread::sleep(Duration::from_secs(1));
+
+        Ok(deadline)
     }
 }
 
@@ -154,30 +172,6 @@ impl JobListInfiniteScrollCrawler for WantedClient {
         tab.evaluate("window.scrollTo(0, document.body.scrollHeight)", false)?;
         std::thread::sleep(Duration::from_secs(2));
         Ok(())
-    }
-}
-
-impl JobDetailCrawler for WantedClient {
-    fn fetch_job_detail(
-        &self,
-        browser: &headless_chrome::Browser,
-        url: &str,
-    ) -> Result<(Option<String>, Option<String>)> {
-        let tab = browser.new_tab()?;
-
-        tab.navigate_to(url)?;
-        tab.wait_for_element("body")?;
-        std::thread::sleep(Duration::from_secs(2));
-
-        let html = tab.get_content()?;
-        let document = Html::parse_document(&html);
-
-        let deadline = self.extract_deadline(&document);
-        let location = self.extract_location(&document);
-
-        std::thread::sleep(Duration::from_secs(1));
-
-        Ok((deadline, location))
     }
 }
 
