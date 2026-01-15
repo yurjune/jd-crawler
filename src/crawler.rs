@@ -1,7 +1,9 @@
 use crate::{Job, Result};
 use headless_chrome::{Browser, LaunchOptions, Tab};
+use rayon::ThreadPoolBuilder;
 use rayon::prelude::*;
 use scraper::Html;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -86,39 +88,35 @@ pub trait JobListPaginatedCrawler: JobCrawler + Sync {
         url: &str,
         total_pages: usize,
         num_threads: usize,
-    ) -> Result<Vec<Job>>
-    where
-        Self: Sync,
-    {
-        let all_jobs: Vec<Job> = (0..num_threads)
-            .into_par_iter()
-            .filter_map(|thread_id| {
-                let tab = browser.new_tab().ok()?;
-                let sys_thread_id = std::thread::current().id();
+    ) -> Result<Vec<Job>> {
+        let pool = ThreadPoolBuilder::new().num_threads(num_threads).build()?;
 
-                let pages: Vec<usize> =
-                    (thread_id + 1..=total_pages).step_by(num_threads).collect();
+        let mut tabs_map = HashMap::new();
+        for i in 0..num_threads {
+            tabs_map.insert(i, browser.new_tab()?);
+        }
+        let tabs = tabs_map;
 
-                let jobs: Vec<Job> = pages
-                    .iter()
-                    .filter_map(|&page_num| {
-                        let url = self.build_page_url(url, page_num);
-                        tab.navigate_to(&url).ok()?;
-                        self.wait_for_list_page_load(&tab).ok()?;
+        let all_jobs: Vec<Job> = pool.install(|| {
+            (1..=total_pages)
+                .into_par_iter()
+                .filter_map(|page| {
+                    let thread_index = rayon::current_thread_index().unwrap();
+                    let tab = &tabs[&thread_index];
 
-                        let html = tab.get_content().ok()?;
-                        let page_jobs = self.parse_job(&html).ok()?;
+                    let url = self.build_page_url(url, page);
+                    tab.navigate_to(&url).ok()?;
+                    self.wait_for_list_page_load(tab).ok()?;
 
-                        println!("[{:?}] 완료: 페이지 {}", sys_thread_id, page_num);
-                        Some(page_jobs)
-                    })
-                    .flatten()
-                    .collect();
+                    let html = tab.get_content().ok()?;
+                    let page_jobs = self.parse_job(&html).ok()?;
 
-                Some(jobs)
-            })
-            .flatten()
-            .collect();
+                    println!("[Thread {:?}] 완료: 페이지 {}", thread_index, page);
+                    Some(page_jobs)
+                })
+                .flatten()
+                .collect()
+        });
 
         Ok(all_jobs)
     }
