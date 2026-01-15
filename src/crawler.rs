@@ -90,8 +90,4 @@ pub trait JobDetailCrawler {
         browser: &headless_chrome::Browser,
         url: &str,
     ) -> Result<(Option<String>, Option<String>)>;
-
-    fn extract_deadline(&self, html: &str) -> Option<String>;
-
-    fn extract_location(&self, html: &str) -> Option<String>;
 }

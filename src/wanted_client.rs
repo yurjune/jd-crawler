@@ -86,21 +86,53 @@ impl WantedClient {
             jobs.par_iter()
                 .map(|job| {
                     let thread_id = std::thread::current().id();
+                    let mut job_clone = job.clone();
+
                     match self.fetch_job_detail(&browser, &job.url) {
                         Ok((deadline, location)) => {
                             println!("[{:?}] 완료: {}", thread_id, job.title);
-                            job.clone().with_details(deadline, location)
+                            job_clone.deadline = deadline;
+                            job_clone.location = location;
                         }
                         Err(e) => {
                             eprintln!("[{:?}] 실패 ({}): {}", thread_id, job.title, e);
-                            job.clone()
                         }
                     }
+
+                    job_clone
                 })
                 .collect()
         });
 
         Ok(jobs_with_details)
+    }
+
+    fn extract_deadline(&self, html: &str) -> Option<String> {
+        let document = Html::parse_document(html);
+        let article_selector = Selector::parse(r#"article[class*="JobDueTime"]"#).ok()?;
+        let span_selector = Selector::parse("span").ok()?;
+
+        let article = document.select(&article_selector).next()?;
+        let span = article.select(&span_selector).next()?;
+        let text = span.text().collect::<String>().trim().to_string();
+
+        if text.is_empty() { None } else { Some(text) }
+    }
+
+    fn extract_location(&self, html: &str) -> Option<String> {
+        let document = Html::parse_document(html);
+        let location_selector =
+            Selector::parse(r#"div[class*="JobWorkPlace__map__location"]"#).ok()?;
+
+        let location_div = document.select(&location_selector).next()?;
+        let text = location_div.text().collect::<String>().trim().to_string();
+
+        if text.is_empty() {
+            None
+        } else {
+            let truncated: String = text.chars().take(16).collect();
+            Some(truncated)
+        }
     }
 }
 
@@ -190,34 +222,6 @@ impl JobDetailCrawler for WantedClient {
         std::thread::sleep(Duration::from_secs(1));
 
         Ok((deadline, location))
-    }
-
-    fn extract_deadline(&self, html: &str) -> Option<String> {
-        let document = Html::parse_document(html);
-        let article_selector = Selector::parse(r#"article[class*="JobDueTime"]"#).ok()?;
-        let span_selector = Selector::parse("span").ok()?;
-
-        let article = document.select(&article_selector).next()?;
-        let span = article.select(&span_selector).next()?;
-        let text = span.text().collect::<String>().trim().to_string();
-
-        if text.is_empty() { None } else { Some(text) }
-    }
-
-    fn extract_location(&self, html: &str) -> Option<String> {
-        let document = Html::parse_document(html);
-        let location_selector =
-            Selector::parse(r#"div[class*="JobWorkPlace__map__location"]"#).ok()?;
-
-        let location_div = document.select(&location_selector).next()?;
-        let text = location_div.text().collect::<String>().trim().to_string();
-
-        if text.is_empty() {
-            None
-        } else {
-            let truncated: String = text.chars().take(16).collect();
-            Some(truncated)
-        }
     }
 }
 

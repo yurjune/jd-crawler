@@ -44,10 +44,4 @@ impl Job {
             location: None,
         }
     }
-
-    pub fn with_details(mut self, deadline: Option<String>, location: Option<String>) -> Self {
-        self.deadline = deadline;
-        self.location = location;
-        self
-    }
 }
