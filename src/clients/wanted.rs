@@ -171,12 +171,12 @@ impl JobListInfiniteScrollCrawler for WantedClient {
         let jobs = document
             .select(&body_selector)
             .map(|body_element| {
-                let body_html = body_element.html();
-                let body_doc = Html::parse_fragment(&body_html);
+                let body_doc = Html::parse_fragment(&body_element.html());
 
                 let title = self.extract_title(&body_doc).unwrap_or_default();
                 let company = self.extract_company(&body_doc).unwrap_or_default();
                 let experience_years = self.extract_experience_years(&body_doc).unwrap_or_default();
+                let location = self.extract_location(&body_doc).unwrap_or_default();
 
                 let url = body_element
                     .parent()
@@ -191,6 +191,7 @@ impl JobListInfiniteScrollCrawler for WantedClient {
                     company,
                     experience_years,
                     url,
+                    location,
                     ..Default::default()
                 }
             })
@@ -226,11 +227,13 @@ impl JobFieldExtractor for WantedClient {
         let spans: Vec<_> = fragment.select(&selector).collect();
         let location_exp = spans.get(2)?.text().collect::<String>().trim().to_string();
 
-        // "서울 강남구∙경력 3년 이상" 형태에서 경력 부분만 추출
-        match location_exp.split('∙').nth(1) {
-            Some(experience) => Some(experience.trim().to_string()),
-            None => Some(location_exp),
+        for sep in ['∙', '·', '•', '/', '|'] {
+            if let Some(experience) = location_exp.split(sep).nth(1) {
+                return Some(experience.trim().to_string());
+            }
         }
+
+        Some(location_exp)
     }
 
     fn extract_url(&self, _fragment: &Html) -> Option<String> {
@@ -252,11 +255,13 @@ impl JobFieldExtractor for WantedClient {
         let spans: Vec<_> = fragment.select(&selector).collect();
         let location_exp = spans.get(2)?.text().collect::<String>().trim().to_string();
 
-        // "서울 강남구∙경력 3년 이상" 형태에서 위치 부분만 추출
-        match location_exp.split('∙').next() {
-            Some(location) => Some(location.trim().to_string()),
-            None => Some(location_exp),
+        for sep in ['∙', '·', '•', '/', '|'] {
+            if location_exp.contains(sep) {
+                return location_exp.split(sep).next().map(|s| s.trim().to_string());
+            }
         }
+
+        Some(location_exp)
     }
 }
 
