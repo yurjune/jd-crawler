@@ -1,4 +1,4 @@
-use crate::crawler::{JobCrawler, JobDetailCrawler, JobListCrawler};
+use crate::crawler::{JobCrawler, JobDetailCrawler, JobListInfiniteScrollCrawler};
 use crate::models::CrawlConfig;
 use crate::{Job, Result};
 use headless_chrome::Tab;
@@ -146,7 +146,7 @@ impl JobCrawler for WantedClient {
     }
 }
 
-impl JobListCrawler for WantedClient {
+impl JobListInfiniteScrollCrawler for WantedClient {
     fn parse_all_jobs(&self, html: &str) -> Result<Vec<Job>> {
         let document = Html::parse_document(html);
 

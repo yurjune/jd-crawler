@@ -20,7 +20,7 @@ pub trait JobCrawler {
     fn wait_for_page_load(&self, tab: &Arc<Tab>) -> Result<()>;
 }
 
-pub trait JobListCrawler: JobCrawler {
+pub trait JobListInfiniteScrollCrawler: JobCrawler {
     fn fetch_all_jobs(
         &self,
         browser: &headless_chrome::Browser,
