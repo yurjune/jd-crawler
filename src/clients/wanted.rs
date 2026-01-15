@@ -213,7 +213,12 @@ impl JobFieldExtractor for WantedClient {
         let selector = Selector::parse("span").ok()?;
         let spans: Vec<_> = fragment.select(&selector).collect();
         let location_exp = spans.get(2)?.text().collect::<String>().trim().to_string();
-        Some(location_exp)
+
+        // "서울 강남구∙경력 3년 이상" 형태에서 경력 부분만 추출
+        match location_exp.split('∙').nth(1) {
+            Some(experience) => Some(experience.trim().to_string()),
+            None => Some(location_exp),
+        }
     }
 
     fn extract_url(&self, _fragment: &Html) -> Option<String> {
@@ -231,17 +236,15 @@ impl JobFieldExtractor for WantedClient {
     }
 
     fn extract_location(&self, fragment: &Html) -> Option<String> {
-        let selector = Selector::parse(r#"div[class*="JobWorkPlace__map__location"]"#).ok()?;
-        let text = fragment
-            .select(&selector)
-            .next()?
-            .text()
-            .collect::<String>()
-            .trim()
-            .chars()
-            .take(16)
-            .collect();
-        Some(text)
+        let selector = Selector::parse("span").ok()?;
+        let spans: Vec<_> = fragment.select(&selector).collect();
+        let location_exp = spans.get(2)?.text().collect::<String>().trim().to_string();
+
+        // "서울 강남구∙경력 3년 이상" 형태에서 위치 부분만 추출
+        match location_exp.split('∙').next() {
+            Some(location) => Some(location.trim().to_string()),
+            None => Some(location_exp),
+        }
     }
 }
 
