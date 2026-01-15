@@ -82,6 +82,13 @@ pub trait JobListInfiniteScrollCrawler: JobCrawler {
 pub trait JobListPaginatedCrawler: JobCrawler + Sync {
     fn build_page_url(&self, base_url: &str, page: usize) -> String;
 
+    fn fetch_jobs(&self, tab: &Arc<Tab>, url: &str) -> Result<Vec<Job>> {
+        tab.navigate_to(url)?;
+        self.wait_for_list_page_load(tab)?;
+        let html = tab.get_content()?;
+        self.parse_job(&html)
+    }
+
     fn fetch_all_jobs(
         &self,
         browser: &headless_chrome::Browser,
@@ -100,21 +107,23 @@ pub trait JobListPaginatedCrawler: JobCrawler + Sync {
         let all_jobs: Vec<Job> = pool.install(|| {
             (1..=total_pages)
                 .into_par_iter()
-                .filter_map(|page| {
+                .flat_map(|page| {
                     let thread_index = rayon::current_thread_index().unwrap();
                     let tab = &tabs[&thread_index];
-
                     let url = self.build_page_url(url, page);
-                    tab.navigate_to(&url).ok()?;
-                    self.wait_for_list_page_load(tab).ok()?;
+                    let result = self.fetch_jobs(tab, &url);
 
-                    let html = tab.get_content().ok()?;
-                    let page_jobs = self.parse_job(&html).ok()?;
-
-                    println!("[Thread {:?}] 완료: 페이지 {}", thread_index, page);
-                    Some(page_jobs)
+                    match result {
+                        Ok(page_jobs) => {
+                            println!("[Thread {:?}] 완료: 페이지 {}", thread_index, page);
+                            page_jobs
+                        }
+                        Err(e) => {
+                            eprintln!("[Thread {:?}] 실패 (페이지 {}): {}", thread_index, page, e);
+                            Vec::new()
+                        }
+                    }
                 })
-                .flatten()
                 .collect()
         });
 
