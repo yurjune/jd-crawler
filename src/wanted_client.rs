@@ -1,4 +1,6 @@
-use crate::crawler::{JobCrawler, JobDetailCrawler, JobListInfiniteScrollCrawler};
+use crate::crawler::{
+    JobCrawler, JobDetailCrawler, JobFieldExtractor, JobListInfiniteScrollCrawler,
+};
 use crate::models::CrawlConfig;
 use crate::{Job, Result};
 use headless_chrome::Tab;
@@ -106,34 +108,6 @@ impl WantedClient {
 
         Ok(jobs_with_details)
     }
-
-    fn extract_deadline(&self, html: &str) -> Option<String> {
-        let document = Html::parse_document(html);
-        let article_selector = Selector::parse(r#"article[class*="JobDueTime"]"#).ok()?;
-        let span_selector = Selector::parse("span").ok()?;
-
-        let article = document.select(&article_selector).next()?;
-        let span = article.select(&span_selector).next()?;
-        let text = span.text().collect::<String>().trim().to_string();
-
-        if text.is_empty() { None } else { Some(text) }
-    }
-
-    fn extract_location(&self, html: &str) -> Option<String> {
-        let document = Html::parse_document(html);
-        let location_selector =
-            Selector::parse(r#"div[class*="JobWorkPlace__map__location"]"#).ok()?;
-
-        let location_div = document.select(&location_selector).next()?;
-        let text = location_div.text().collect::<String>().trim().to_string();
-
-        if text.is_empty() {
-            None
-        } else {
-            let truncated: String = text.chars().take(16).collect();
-            Some(truncated)
-        }
-    }
 }
 
 impl JobCrawler for WantedClient {
@@ -151,31 +125,16 @@ impl JobListInfiniteScrollCrawler for WantedClient {
         let document = Html::parse_document(html);
 
         let body_selector = Selector::parse(r#"div[class*="JobCard_JobCard__body__"]"#).unwrap();
-        let span_selector = Selector::parse("span").unwrap();
 
         let jobs = document
             .select(&body_selector)
             .filter_map(|body_element| {
-                let spans: Vec<_> = body_element.select(&span_selector).collect();
+                let body_html = body_element.html();
+                let body_doc = Html::parse_fragment(&body_html);
 
-                if spans.len() < 3 {
-                    return None;
-                }
-
-                let title = spans[0].text().collect::<String>().trim().to_string();
-                let company = spans[1].text().collect::<String>().trim().to_string();
-                let location_exp = spans[2].text().collect::<String>().trim().to_string();
-
-                let experience_years = if location_exp.contains("경력") {
-                    location_exp
-                        .split('·')
-                        .nth(1)
-                        .unwrap_or("N/A")
-                        .trim()
-                        .to_string()
-                } else {
-                    "N/A".to_string()
-                };
+                let title = self.extract_title(&body_doc)?;
+                let company = self.extract_company(&body_doc)?;
+                let experience_years = self.extract_experience_years(&body_doc)?;
 
                 let url = body_element
                     .parent()
@@ -183,10 +142,6 @@ impl JobListInfiniteScrollCrawler for WantedClient {
                     .filter(|element| element.name() == "a")
                     .and_then(|element| element.attr("href"))
                     .map(|href| format!("{}{}", self.base_url, href))?;
-
-                if title.is_empty() || company.is_empty() {
-                    return None;
-                }
 
                 Some(Job::new(title, company, experience_years, url))
             })
@@ -215,13 +170,65 @@ impl JobDetailCrawler for WantedClient {
         std::thread::sleep(Duration::from_secs(2));
 
         let html = tab.get_content()?;
+        let document = Html::parse_document(&html);
 
-        let deadline = self.extract_deadline(&html);
-        let location = self.extract_location(&html);
+        let deadline = self.extract_deadline(&document);
+        let location = self.extract_location(&document);
 
         std::thread::sleep(Duration::from_secs(1));
 
         Ok((deadline, location))
+    }
+}
+
+impl JobFieldExtractor for WantedClient {
+    fn extract_title(&self, fragment: &Html) -> Option<String> {
+        let selector = Selector::parse("span").ok()?;
+        let spans: Vec<_> = fragment.select(&selector).collect();
+        let text = spans.first()?.text().collect::<String>().trim().to_string();
+        Some(text)
+    }
+
+    fn extract_company(&self, fragment: &Html) -> Option<String> {
+        let selector = Selector::parse("span").ok()?;
+        let spans: Vec<_> = fragment.select(&selector).collect();
+        let text = spans.get(1)?.text().collect::<String>().trim().to_string();
+        Some(text)
+    }
+
+    fn extract_experience_years(&self, fragment: &Html) -> Option<String> {
+        let selector = Selector::parse("span").ok()?;
+        let spans: Vec<_> = fragment.select(&selector).collect();
+        let location_exp = spans.get(2)?.text().collect::<String>().trim().to_string();
+        Some(location_exp)
+    }
+
+    fn extract_url(&self, _fragment: &Html) -> Option<String> {
+        // URL은 JobCard body의 부모 요소에서 추출하므로 여기서는 구현하지 않음
+        None
+    }
+
+    fn extract_deadline(&self, fragment: &Html) -> Option<String> {
+        let article_selector = Selector::parse(r#"article[class*="JobDueTime"]"#).ok()?;
+        let span_selector = Selector::parse("span").ok()?;
+        let article = fragment.select(&article_selector).next()?;
+        let span = article.select(&span_selector).next()?;
+        let text = span.text().collect::<String>().trim().to_string();
+        Some(text)
+    }
+
+    fn extract_location(&self, fragment: &Html) -> Option<String> {
+        let selector = Selector::parse(r#"div[class*="JobWorkPlace__map__location"]"#).ok()?;
+        let text = fragment
+            .select(&selector)
+            .next()?
+            .text()
+            .collect::<String>()
+            .trim()
+            .chars()
+            .take(16)
+            .collect();
+        Some(text)
     }
 }
 

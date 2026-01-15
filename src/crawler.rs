@@ -1,6 +1,7 @@
 use crate::{Job, Result};
 use headless_chrome::{Browser, LaunchOptions, Tab};
 use rayon::prelude::*;
+use scraper::Html;
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -140,4 +141,13 @@ pub trait JobDetailCrawler {
         browser: &headless_chrome::Browser,
         url: &str,
     ) -> Result<(Option<String>, Option<String>)>;
+}
+
+pub trait JobFieldExtractor {
+    fn extract_title(&self, fragment: &Html) -> Option<String>;
+    fn extract_company(&self, fragment: &Html) -> Option<String>;
+    fn extract_experience_years(&self, fragment: &Html) -> Option<String>;
+    fn extract_url(&self, fragment: &Html) -> Option<String>;
+    fn extract_deadline(&self, fragment: &Html) -> Option<String>;
+    fn extract_location(&self, fragment: &Html) -> Option<String>;
 }
