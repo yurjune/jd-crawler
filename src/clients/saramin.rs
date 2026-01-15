@@ -82,22 +82,22 @@ impl JobListPaginatedCrawler for SaraminClient {
 
         let jobs = document
             .select(&job_card_selector)
-            .filter_map(|card| {
+            .map(|card| {
                 let card_html = card.html();
                 let card_fragment = Html::parse_fragment(&card_html);
 
-                let title = self.extract_title(&card_fragment)?;
-                let company = self.extract_company(&card_fragment)?;
-                let experience_years = self.extract_experience_years(&card_fragment)?;
-                let url = self.extract_url(&card_fragment)?;
-                let deadline = self.extract_deadline(&card_fragment);
-                let location = self.extract_location(&card_fragment);
+                let title = self.extract_title(&card_fragment).unwrap_or_default();
+                let company = self.extract_company(&card_fragment).unwrap_or_default();
+                let experience_years = self.extract_experience_years(&card_fragment).unwrap_or_default();
+                let url = self.extract_url(&card_fragment).unwrap_or_default();
+                let deadline = self.extract_deadline(&card_fragment).unwrap_or_default();
+                let location = self.extract_location(&card_fragment).unwrap_or_default();
 
                 let mut job = Job::new(title, company, experience_years, url);
                 job.deadline = deadline;
                 job.location = location;
 
-                Some(job)
+                job
             })
             .collect();
 

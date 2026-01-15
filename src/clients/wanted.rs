@@ -113,7 +113,7 @@ impl WantedClient {
                     match self.fetch_job_detail(&browser, &job.url) {
                         Ok(deadline) => {
                             println!("[{:?}] 완료: {}", thread_id, job.title);
-                            job_clone.deadline = deadline;
+                            job_clone.deadline = deadline.unwrap_or_default();
                         }
                         Err(e) => {
                             eprintln!("[{:?}] 실패 ({}): {}", thread_id, job.title, e);
@@ -165,22 +165,23 @@ impl JobListInfiniteScrollCrawler for WantedClient {
 
         let jobs = document
             .select(&body_selector)
-            .filter_map(|body_element| {
+            .map(|body_element| {
                 let body_html = body_element.html();
                 let body_doc = Html::parse_fragment(&body_html);
 
-                let title = self.extract_title(&body_doc)?;
-                let company = self.extract_company(&body_doc)?;
-                let experience_years = self.extract_experience_years(&body_doc)?;
+                let title = self.extract_title(&body_doc).unwrap_or_default();
+                let company = self.extract_company(&body_doc).unwrap_or_default();
+                let experience_years = self.extract_experience_years(&body_doc).unwrap_or_default();
 
                 let url = body_element
                     .parent()
                     .and_then(|parent| parent.value().as_element())
                     .filter(|element| element.name() == "a")
                     .and_then(|element| element.attr("href"))
-                    .map(|href| format!("{}{}", self.base_url, href))?;
+                    .map(|href| format!("{}{}", self.base_url, href))
+                    .unwrap_or_default();
 
-                Some(Job::new(title, company, experience_years, url))
+                Job::new(title, company, experience_years, url)
             })
             .collect();
 

@@ -5,8 +5,8 @@ pub struct Job {
     pub title: String,
     pub company: String,
     pub experience_years: String,
-    pub deadline: Option<String>,
-    pub location: Option<String>,
+    pub deadline: String,
+    pub location: String,
     pub url: String,
 }
 
@@ -17,8 +17,8 @@ impl Job {
             company,
             experience_years,
             url,
-            deadline: None,
-            location: None,
+            deadline: String::new(),
+            location: String::new(),
         }
     }
 }
