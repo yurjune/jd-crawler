@@ -1,3 +1,4 @@
+use crate::utils::random_delay;
 use crate::{Job, Result};
 use headless_chrome::Tab;
 use rayon::ThreadPoolBuilder;
@@ -48,6 +49,7 @@ pub trait JobEnricher: Sync {
                         }
                     }
 
+                    random_delay();
                     job
                 })
                 .collect()

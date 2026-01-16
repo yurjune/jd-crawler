@@ -623,6 +623,7 @@ version = "0.1.0"
 dependencies = [
  "csv",
  "headless_chrome",
+ "rand 0.9.2",
  "rayon",
  "regex",
  "scraper",

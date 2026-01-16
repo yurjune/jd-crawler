@@ -4,6 +4,7 @@ pub mod enricher;
 pub mod enrichers;
 pub mod models;
 pub mod pipeline;
+pub mod utils;
 pub mod writer;
 
 pub use clients::{
