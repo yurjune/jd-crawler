@@ -38,7 +38,17 @@ impl PipelineWithJobs {
         self
     }
 
-    pub fn save(&self, path: impl Into<String>) {
+    #[must_use = "save_and_then() returns Self to allow chaining"]
+    pub fn save_and_then(self, path: impl Into<String>) -> Self {
+        let path = path.into();
+        match save_to_csv(&self.jobs, &path) {
+            Ok(_) => println!("✅ csv 저장 완료: {}", path),
+            Err(e) => eprintln!("❌ csv 저장 실패 ({}): {}", path, e),
+        }
+        self
+    }
+
+    pub fn save(self, path: impl Into<String>) {
         let path = path.into();
         match save_to_csv(&self.jobs, &path) {
             Ok(_) => println!("✅ csv 저장 완료: {}", path),

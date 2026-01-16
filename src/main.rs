@@ -9,23 +9,25 @@ fn main() -> Result<()> {
         .crawl(WantedClient::new(WantedCrawlConfig {
             category: WantedJobCategory::Development,
             subcategory: WantedJobSubcategory::Frontend,
-            total_pages: 1,
+            total_pages: 50,
             min_years: 0,
             max_years: 5,
-            full_crawl: false,
+            full_crawl: true,
             thread_count: 8,
         }))?
-        .enrich(BlindEnricher::new(EnricherConfig { thread_count: 8 }))
-        .save("wanted-frontend-jobs.csv");
+        .save_and_then("wanted.csv")
+        .enrich(BlindEnricher::new(EnricherConfig { thread_count: 1 }))
+        .save("wanted.csv");
 
     CrawlPipeline::new()
         .crawl(SaraminClient::new(SaraminCrawlConfig {
             category: SaraminJobCategory::Frontend,
-            total_pages: 16,
+            total_pages: 50,
             thread_count: 8,
         }))?
+        .save_and_then("saramin.csv")
         .enrich(BlindEnricher::new(EnricherConfig { thread_count: 1 }))
-        .save("saramin-frontend-jobs.csv");
+        .save("saramin.csv");
 
     Ok(())
 }

@@ -46,9 +46,10 @@ fn main() -> Result<()> {
             full_crawl: false,
             thread_count: 8,
         }))?
+        .save_and_then("wanted.csv")
         // 블라인드 평점/리뷰 기록
         .enrich(BlindEnricher::new(EnricherConfig { thread_count: 1 })) 
-        .save("wanted-frontend-jobs.csv");
+        .save("wanted.csv");
 
     Ok(())
 }
@@ -66,9 +67,10 @@ fn main() -> Result<()> {
             total_pages: 24,
             thread_count: 8,
         }))?
+        .save_and_then("saramin.csv")
         // 블라인드 평점/리뷰 기록
         .enrich(BlindEnricher::new(EnricherConfig { thread_count: 1 }))
-        .save("saramin-frontend-jobs.csv");
+        .save("saramin.csv");
 
     Ok(())
 }
