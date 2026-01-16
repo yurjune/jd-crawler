@@ -7,11 +7,12 @@ use scraper::Html;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+pub struct EnricherConfig {
+    pub thread_count: usize,
+}
+
 pub trait JobEnricher: Sync {
-    fn normalize_company_name(&self, company: &str) -> String {
-        let re = Regex::new(r"\s*[(\(（][^)\)）]*[)\)）]\s*").unwrap();
-        re.replace_all(company, "").trim().to_string()
-    }
+    fn start_enrich(&self, jobs: Vec<Job>) -> Result<Vec<Job>>;
 
     fn enrich(
         &self,
@@ -55,13 +56,18 @@ pub trait JobEnricher: Sync {
         Ok(enriched_jobs)
     }
 
-    fn build_url(&self, company: &str) -> String;
-
     fn fetch_rate_and_reviews(
         &self,
         tab: &Arc<Tab>,
         url: &str,
     ) -> Result<(Option<String>, Option<u32>)>;
+
+    fn build_url(&self, company: &str) -> String;
+
+    fn normalize_company_name(&self, company: &str) -> String {
+        let re = Regex::new(r"\s*[(\(（][^)\)）]*[)\)）]\s*").unwrap();
+        re.replace_all(company, "").trim().to_string()
+    }
 
     fn parse_data(&self, html: &str) -> Result<(Option<String>, Option<u32>)>;
 

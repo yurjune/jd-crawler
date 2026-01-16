@@ -1,4 +1,5 @@
 use crate::crawler::{JobCrawler, JobFieldExtractor, JobListInfiniteScrollCrawler};
+use crate::pipeline::Crawler;
 use crate::{Job, Result};
 use headless_chrome::Tab;
 use rayon::ThreadPoolBuilder;
@@ -10,26 +11,25 @@ use std::time::Duration;
 
 #[derive(Debug, Clone)]
 pub struct WantedCrawlConfig {
-    /// 크롤링할 페이지 수
+    pub category: WantedJobCategory,
+    pub subcategory: WantedJobSubcategory,
     pub total_pages: usize,
-    /// 병렬 처리에 사용할 스레드 개수
-    pub num_threads: usize,
-    /// 최소 경력 (년)
     pub min_years: u8,
-    /// 최대 경력 (년)
     pub max_years: u8,
-    /// 각 상세 페이지 추가 크롤링
     pub full_crawl: bool,
+    pub thread_count: usize,
 }
 
 impl Default for WantedCrawlConfig {
     fn default() -> Self {
         Self {
+            category: WantedJobCategory::Development,
+            subcategory: WantedJobSubcategory::Frontend,
             total_pages: 1,
-            num_threads: 4,
             min_years: 0,
             max_years: 5,
             full_crawl: true,
+            thread_count: 8,
         }
     }
 }
@@ -70,48 +70,26 @@ impl WantedJobSubcategory {
 
 pub struct WantedClient {
     base_url: String,
-    category: WantedJobCategory,
-    subcategory: WantedJobSubcategory,
+    config: WantedCrawlConfig,
 }
 
 impl WantedClient {
-    pub fn new(category: WantedJobCategory, subcategory: WantedJobSubcategory) -> Self {
+    pub fn new(config: WantedCrawlConfig) -> Self {
         Self {
             base_url: "https://www.wanted.co.kr".to_string(),
-            category,
-            subcategory,
+            config,
         }
     }
 
-    fn build_url(&self, config: &WantedCrawlConfig) -> String {
+    fn build_url(&self) -> String {
         format!(
             "{}/wdlist/{}/{}?country=kr&job_sort=job.recommend_order&years={}&years={}&locations=all",
             self.base_url,
-            self.category.to_code(),
-            self.subcategory.to_code(),
-            config.min_years,
-            config.max_years
+            self.config.category.to_code(),
+            self.config.subcategory.to_code(),
+            self.config.min_years,
+            self.config.max_years
         )
-    }
-
-    pub fn start_crawl(&self, config: WantedCrawlConfig) -> Result<Vec<Job>> {
-        let url = self.build_url(&config);
-        let browser = self.create_browser()?;
-
-        println!("원티드 채용공고 목록 수집 시작..",);
-        let jobs = self.fetch_all_jobs(&browser, &url, config.total_pages)?;
-        let job_counts = jobs.len();
-        println!("\n✅ 원티드 채용공고 {}개 수집 완료", job_counts);
-
-        if !config.full_crawl {
-            return Ok(jobs);
-        }
-
-        println!("\n원티드 각 상세 채용공고 수집 시작...");
-        let jobs_with_details = self.fetch_all_job_detail(&browser, jobs, config.num_threads)?;
-        println!("✅ 원티드 각 상세 채용공고 수집 완료");
-
-        Ok(jobs_with_details)
     }
 
     fn fetch_all_job_detail(
@@ -285,9 +263,29 @@ impl JobFieldExtractor for WantedClient {
 
 impl Default for WantedClient {
     fn default() -> Self {
-        Self::new(
-            WantedJobCategory::Development,
-            WantedJobSubcategory::Frontend,
-        )
+        Self::new(WantedCrawlConfig::default())
+    }
+}
+
+impl Crawler for WantedClient {
+    fn start_crawl(self) -> Result<Vec<Job>> {
+        let url = self.build_url();
+        let browser = self.create_browser()?;
+
+        println!("원티드 채용공고 목록 수집 시작..",);
+        let jobs = self.fetch_all_jobs(&browser, &url, self.config.total_pages)?;
+        let job_counts = jobs.len();
+        println!("\n✅ 원티드 채용공고 {}개 수집 완료", job_counts);
+
+        if !self.config.full_crawl {
+            return Ok(jobs);
+        }
+
+        println!("\n원티드 각 상세 채용공고 수집 시작...");
+        let jobs_with_details =
+            self.fetch_all_job_detail(&browser, jobs, self.config.thread_count)?;
+        println!("✅ 원티드 각 상세 채용공고 수집 완료");
+
+        Ok(jobs_with_details)
     }
 }

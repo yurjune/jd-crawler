@@ -4,31 +4,33 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::JobCrawler;
-use crate::enricher::JobEnricher;
+use crate::enricher::{EnricherConfig, JobEnricher};
 use crate::{Job, Result};
 use regex::Regex;
 
 pub struct BlindEnricher {
     base_url: String,
+    config: EnricherConfig,
 }
 
 impl BlindEnricher {
-    pub fn new() -> Self {
+    pub fn new(config: EnricherConfig) -> Self {
         Self {
             base_url: "https://www.teamblind.com/kr/company".to_string(),
+            config,
         }
-    }
-
-    pub fn start_enrich(&self, jobs: Vec<Job>, thread_count: usize) -> Result<Vec<Job>> {
-        let browser = self.create_browser()?;
-        println!("\n블라인드 평점/리뷰 개수 수집 시작..");
-        let enriched_jobs = self.enrich(&browser, jobs, thread_count)?;
-        println!("\n✅ 블라인드 평점/리뷰 개수 수집 완료");
-        Ok(enriched_jobs)
     }
 }
 
 impl JobEnricher for BlindEnricher {
+    fn start_enrich(&self, jobs: Vec<Job>) -> Result<Vec<Job>> {
+        let browser = self.create_browser()?;
+        println!("\n블라인드 평점/리뷰 개수 수집 시작..");
+        let enriched_jobs = self.enrich(&browser, jobs, self.config.thread_count)?;
+        println!("\n✅ 블라인드 평점/리뷰 개수 수집 완료");
+        Ok(enriched_jobs)
+    }
+
     fn build_url(&self, company: &str) -> String {
         format!("{}/{}/reviews", self.base_url, company)
     }
@@ -85,12 +87,6 @@ impl JobEnricher for BlindEnricher {
         }
 
         None
-    }
-}
-
-impl Default for BlindEnricher {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

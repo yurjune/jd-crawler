@@ -1,23 +1,24 @@
 use crate::Result;
 use crate::crawler::{JobCrawler, JobFieldExtractor, JobListPaginatedCrawler};
 use crate::models::Job;
+use crate::pipeline::Crawler;
 use headless_chrome::Tab;
 use scraper::{Html, Selector};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct SaraminCrawlConfig {
-    /// 크롤링할 페이지 수
+    pub category: SaraminJobCategory,
     pub total_pages: usize,
-    /// 병렬 처리에 사용할 스레드 개수
-    pub num_threads: usize,
+    pub thread_count: usize,
 }
 
 impl Default for SaraminCrawlConfig {
     fn default() -> Self {
         Self {
+            category: SaraminJobCategory::Frontend,
             total_pages: 1,
-            num_threads: 4,
+            thread_count: 1,
         }
     }
 }
@@ -37,34 +38,15 @@ impl SaraminJobCategory {
 
 pub struct SaraminClient {
     base_url: String,
-    category: SaraminJobCategory,
+    config: SaraminCrawlConfig,
 }
 
 impl SaraminClient {
-    pub fn new(category: SaraminJobCategory) -> Self {
+    pub fn new(config: SaraminCrawlConfig) -> Self {
         Self {
             base_url: "https://www.saramin.co.kr".to_string(),
-            category,
+            config,
         }
-    }
-
-    pub fn start_crawl(&self, config: SaraminCrawlConfig) -> Result<Vec<Job>> {
-        let browser = self.create_browser()?;
-        let refined_url = format!(
-            "{}/zf_user/search/recruit?searchword={}",
-            self.base_url,
-            self.category.to_word()
-        );
-
-        println!("사람인 채용공고 목록 수집 시작..",);
-        let jobs = self.fetch_all_jobs(
-            &browser,
-            &refined_url,
-            config.total_pages,
-            config.num_threads,
-        )?;
-        println!("\n✅ 사람인 {}개 채용공고 수집 완료", jobs.len());
-        Ok(jobs)
     }
 }
 
@@ -194,5 +176,26 @@ impl JobFieldExtractor for SaraminClient {
             .collect::<Vec<_>>()
             .join(" ");
         Some(text)
+    }
+}
+
+impl Crawler for SaraminClient {
+    fn start_crawl(self) -> Result<Vec<Job>> {
+        let browser = self.create_browser()?;
+        let refined_url = format!(
+            "{}/zf_user/search/recruit?searchword={}",
+            self.base_url,
+            self.config.category.to_word()
+        );
+
+        println!("사람인 채용공고 목록 수집 시작..",);
+        let jobs = self.fetch_all_jobs(
+            &browser,
+            &refined_url,
+            self.config.total_pages,
+            self.config.thread_count,
+        )?;
+        println!("\n✅ 사람인 {}개 채용공고 수집 완료", jobs.len());
+        Ok(jobs)
     }
 }
