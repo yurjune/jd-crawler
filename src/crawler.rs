@@ -4,6 +4,7 @@ use rayon::ThreadPoolBuilder;
 use rayon::prelude::*;
 use scraper::Html;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -45,22 +46,27 @@ pub trait JobListInfiniteScrollCrawler: JobCrawler {
         tab.navigate_to(url)?;
         self.wait_for_list_page_load(&tab)?;
 
+        let mut seen_url = HashSet::new();
         let mut all_jobs = Vec::new();
         let mut no_new_count = 0;
 
         for current_page in 1..=total_pages {
-            let new_jobs = tab
+            let new_jobs: Vec<_> = tab
                 .get_content()
                 .ok()
                 .and_then(|html| self.parse_all_jobs(&html).ok())
                 .unwrap_or_else(|| {
                     eprintln!("페이지 {}: 처리 실패", current_page);
                     Vec::new()
-                });
+                })
+                .into_iter()
+                .filter(|job| seen_url.insert(job.url.clone()))
+                .collect();
 
             let new_count = new_jobs.len();
             all_jobs.extend(new_jobs);
             no_new_count = if new_count == 0 { no_new_count + 1 } else { 0 };
+
             println!(
                 "페이지 {}: 신규 {}개, 총 {}개 수집",
                 current_page,
