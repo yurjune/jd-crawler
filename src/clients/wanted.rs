@@ -6,7 +6,8 @@ use rayon::ThreadPoolBuilder;
 use rayon::prelude::*;
 use scraper::{Html, Selector};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 #[derive(Debug, Clone)]
@@ -100,7 +101,7 @@ impl WantedClient {
     ) -> Result<Vec<Job>> {
         let pool = ThreadPoolBuilder::new().num_threads(num_threads).build()?;
         let total = jobs.len();
-        let counter = Arc::new(Mutex::new(0usize));
+        let counter = Arc::new(AtomicUsize::new(0));
 
         let mut tabs_map = HashMap::new();
         for i in 0..num_threads {
@@ -114,11 +115,7 @@ impl WantedClient {
                     let thread_index = rayon::current_thread_index().unwrap();
                     let tab = &tabs[&thread_index];
                     let result = self.fetch_job_detail(tab, &job.url);
-                    let count = {
-                        let mut c = counter.lock().unwrap();
-                        *c += 1;
-                        *c
-                    };
+                    let count = counter.fetch_add(1, Ordering::Relaxed) + 1;
 
                     match result {
                         Ok(deadline) => {
