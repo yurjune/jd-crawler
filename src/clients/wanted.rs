@@ -6,7 +6,7 @@ use rayon::ThreadPoolBuilder;
 use rayon::prelude::*;
 use scraper::{Html, Selector};
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 #[derive(Debug, Clone)]
@@ -99,6 +99,8 @@ impl WantedClient {
         num_threads: usize,
     ) -> Result<Vec<Job>> {
         let pool = ThreadPoolBuilder::new().num_threads(num_threads).build()?;
+        let total = jobs.len();
+        let counter = Arc::new(Mutex::new(0usize));
 
         let mut tabs_map = HashMap::new();
         for i in 0..num_threads {
@@ -111,14 +113,26 @@ impl WantedClient {
                 .map(|mut job| {
                     let thread_index = rayon::current_thread_index().unwrap();
                     let tab = &tabs[&thread_index];
+                    let result = self.fetch_job_detail(tab, &job.url);
+                    let count = {
+                        let mut c = counter.lock().unwrap();
+                        *c += 1;
+                        *c
+                    };
 
-                    match self.fetch_job_detail(tab, &job.url) {
+                    match result {
                         Ok(deadline) => {
-                            println!("[Thread {:?}] 완료: {}", thread_index, job.title);
+                            println!(
+                                "[Thread {:?}] {}/{} 완료: {}",
+                                thread_index, count, total, job.title
+                            );
                             job.deadline = deadline.unwrap_or_default();
                         }
                         Err(e) => {
-                            eprintln!("[Thread {:?}] 실패 ({}): {}", thread_index, job.title, e);
+                            eprintln!(
+                                "[Thread {:?}] {}/{} 실패 ({}): {}",
+                                thread_index, count, total, job.title, e
+                            );
                         }
                     }
                     job
