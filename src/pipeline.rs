@@ -38,10 +38,12 @@ impl PipelineWithJobs {
         self
     }
 
-    pub fn save(&self, path: impl Into<String>) -> Result<()> {
+    pub fn save(&self, path: impl Into<String>) {
         let path = path.into();
-        save_to_csv(&self.jobs, &path)?;
-        Ok(())
+        match save_to_csv(&self.jobs, &path) {
+            Ok(_) => println!("✅ csv 저장 완료: {}", path),
+            Err(e) => eprintln!("❌ csv 저장 실패 ({}): {}", path, e),
+        }
     }
 }
 
