@@ -4,7 +4,6 @@ use rayon::ThreadPoolBuilder;
 use rayon::prelude::*;
 use scraper::Html;
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -46,24 +45,22 @@ pub trait JobListInfiniteScrollCrawler: JobCrawler {
         tab.navigate_to(url)?;
         self.wait_for_list_page_load(&tab)?;
 
-        let mut seen_url = HashSet::new();
         let mut all_jobs = Vec::new();
         let mut no_new_count = 0;
 
         for current_page in 1..=total_pages {
-            let html = tab.get_content()?;
-            let new_jobs = self.parse_all_jobs(&html)?;
+            let new_jobs = tab
+                .get_content()
+                .ok()
+                .and_then(|html| self.parse_all_jobs(&html).ok())
+                .unwrap_or_else(|| {
+                    eprintln!("페이지 {}: 처리 실패", current_page);
+                    Vec::new()
+                });
 
-            let unique_jobs: Vec<_> = new_jobs
-                .into_iter()
-                .filter(|job| seen_url.insert(job.url.clone()))
-                .collect();
-
-            let new_count = unique_jobs.len();
-            all_jobs.extend(unique_jobs);
-
+            let new_count = new_jobs.len();
+            all_jobs.extend(new_jobs);
             no_new_count = if new_count == 0 { no_new_count + 1 } else { 0 };
-
             println!(
                 "페이지 {}: 신규 {}개, 총 {}개 수집",
                 current_page,
@@ -72,12 +69,14 @@ pub trait JobListInfiniteScrollCrawler: JobCrawler {
             );
 
             if no_new_count >= 2 {
-                println!("더 이상 새 데이터 없음 ({}번 연속)", no_new_count);
+                println!("더 이상 새 데이터 없음");
                 break;
             }
-
             if current_page < total_pages {
-                self.go_next_page(&tab)?;
+                if let Err(e) = self.go_next_page(&tab) {
+                    eprintln!("페이지 추가 로드 실패: 크롤링 종료: {}", e);
+                    break;
+                }
             }
         }
 
@@ -126,7 +125,7 @@ pub trait JobListPaginatedCrawler: JobCrawler + Sync {
                             page_jobs
                         }
                         Err(e) => {
-                            eprintln!("[Thread {:?}] 실패 (페이지 {}): {}", thread_index, page, e);
+                            eprintln!("[Thread {:?}] 실패: (페이지 {}): {}", thread_index, page, e);
                             Vec::new()
                         }
                     }
