@@ -65,13 +65,10 @@ impl JobEnricher for BlindEnricher {
         for script in document.select(&selector) {
             let json_text = script.text().collect::<String>();
 
-            if json_text.contains("EmployerAggregateRating") {
-                if let Some(captures) = re.captures(&json_text) {
-                    return Some(captures.get(1)?.as_str().to_string());
-                }
+            if let Some(captures) = re.captures(&json_text) {
+                return Some(captures.get(1)?.as_str().to_string());
             }
         }
-
         None
     }
 
@@ -82,14 +79,11 @@ impl JobEnricher for BlindEnricher {
         for script in document.select(&selector) {
             let json_text = script.text().collect::<String>();
 
-            if json_text.contains("EmployerAggregateRating") {
-                if let Some(captures) = re.captures(&json_text) {
-                    let number_str = captures.get(1)?.as_str();
-                    return number_str.parse::<u32>().ok();
-                }
+            if let Some(captures) = re.captures(&json_text) {
+                let number_str = captures.get(1)?.as_str();
+                return number_str.parse::<u32>().ok();
             }
         }
-
         None
     }
 }
