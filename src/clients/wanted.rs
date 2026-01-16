@@ -270,22 +270,25 @@ impl Default for WantedClient {
 impl Crawler for WantedClient {
     fn start_crawl(self) -> Result<Vec<Job>> {
         let url = self.build_url();
-        let browser = self.create_browser()?;
+        let browser = self
+            .create_browser()
+            .inspect_err(|e| eprintln!("❌ 원티드 채용공고 수집 실패: {}", e))?;
 
         println!("원티드 채용공고 목록 수집 시작..",);
-        let jobs = self.fetch_all_jobs(&browser, &url, self.config.total_pages)?;
-        let job_counts = jobs.len();
-        println!("\n✅ 원티드 채용공고 {}개 수집 완료", job_counts);
+        self.fetch_all_jobs(&browser, &url, self.config.total_pages)
+            .inspect(|jobs| println!("\n✅ 원티드 채용공고 {}개 수집 완료", jobs.len()))
+            .and_then(|jobs| {
+                if !self.config.full_crawl {
+                    return Ok(jobs);
+                }
 
-        if !self.config.full_crawl {
-            return Ok(jobs);
-        }
+                println!("\n원티드 각 상세 채용공고 수집 시작..");
 
-        println!("\n원티드 각 상세 채용공고 수집 시작...");
-        let jobs_with_details =
-            self.fetch_all_job_detail(&browser, jobs, self.config.thread_count)?;
-        println!("✅ 원티드 각 상세 채용공고 수집 완료");
-
-        Ok(jobs_with_details)
+                self.fetch_all_job_detail(&browser, jobs.clone(), self.config.thread_count)
+                    .inspect(|_| println!("✅ 원티드 각 상세 채용공고 수집 완료"))
+                    .inspect_err(|e| eprintln!("상세 채용공고 추가 수집 실패: {}", e))
+                    .or(Ok(jobs))
+            })
+            .inspect_err(|e| eprintln!("❌ 원티드 채용공고 수집 실패: {}", e))
     }
 }

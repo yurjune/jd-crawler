@@ -181,7 +181,10 @@ impl JobFieldExtractor for SaraminClient {
 
 impl Crawler for SaraminClient {
     fn start_crawl(self) -> Result<Vec<Job>> {
-        let browser = self.create_browser()?;
+        let browser = self
+            .create_browser()
+            .inspect_err(|e| eprintln!("❌ 사람인 채용공고 수집 실패: {}", e))?;
+
         let refined_url = format!(
             "{}/zf_user/search/recruit?searchword={}",
             self.base_url,
@@ -189,13 +192,16 @@ impl Crawler for SaraminClient {
         );
 
         println!("사람인 채용공고 목록 수집 시작..",);
-        let jobs = self.fetch_all_jobs(
-            &browser,
-            &refined_url,
-            self.config.total_pages,
-            self.config.thread_count,
-        )?;
-        println!("\n✅ 사람인 {}개 채용공고 수집 완료", jobs.len());
+        let jobs = self
+            .fetch_all_jobs(
+                &browser,
+                &refined_url,
+                self.config.total_pages,
+                self.config.thread_count,
+            )
+            .inspect(|jobs| println!("\n✅ 사람인 {}개 채용공고 수집 완료", jobs.len()))
+            .inspect_err(|e| eprintln!("❌ 사람인 채용공고 수집 실패: {}", e))?;
+
         Ok(jobs)
     }
 }
