@@ -23,7 +23,7 @@ impl BlindEnricher {
 }
 
 impl JobEnricher for BlindEnricher {
-    fn start_enrich(&self, jobs: Vec<Job>) -> Result<Vec<Job>> {
+    fn start_enrich(&self, jobs: &[Job]) -> Result<Vec<Job>> {
         println!("\n블라인드 평점/리뷰 개수 수집 시작..");
 
         let browser = self

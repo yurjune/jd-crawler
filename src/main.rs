@@ -15,7 +15,7 @@ fn main() -> Result<()> {
             full_crawl: false,
             thread_count: 8,
         }))?
-        .enrich(BlindEnricher::new(EnricherConfig { thread_count: 8 }))?
+        .enrich(BlindEnricher::new(EnricherConfig { thread_count: 8 }))
         .save("wanted-frontend-jobs.csv")?;
 
     CrawlPipeline::new()
@@ -24,7 +24,7 @@ fn main() -> Result<()> {
             total_pages: 16,
             thread_count: 8,
         }))?
-        .enrich(BlindEnricher::new(EnricherConfig { thread_count: 1 }))?
+        .enrich(BlindEnricher::new(EnricherConfig { thread_count: 1 }))
         .save("saramin-frontend-jobs.csv")?;
 
     Ok(())
