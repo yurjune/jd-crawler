@@ -24,11 +24,15 @@ impl BlindEnricher {
 
 impl JobEnricher for BlindEnricher {
     fn start_enrich(&self, jobs: Vec<Job>) -> Result<Vec<Job>> {
-        let browser = self.create_browser()?;
         println!("\n블라인드 평점/리뷰 개수 수집 시작..");
-        let enriched_jobs = self.enrich(&browser, jobs, self.config.thread_count)?;
-        println!("\n✅ 블라인드 평점/리뷰 개수 수집 완료");
-        Ok(enriched_jobs)
+
+        let browser = self
+            .create_browser()
+            .inspect_err(|e| eprintln!("❌ 블라인드 평점/리뷰 개수 수집 실패: {}", e))?;
+
+        self.enrich_all_jobs(&browser, jobs, self.config.thread_count)
+            .inspect(|_| println!("✅ 블라인드 평점/리뷰 개수 수집 완료"))
+            .inspect_err(|e| eprintln!("❌ 블라인드 평점/리뷰 개수 수집 실패: {}", e))
     }
 
     fn build_url(&self, company: &str) -> String {

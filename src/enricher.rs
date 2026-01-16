@@ -14,7 +14,7 @@ pub struct EnricherConfig {
 pub trait JobEnricher: Sync {
     fn start_enrich(&self, jobs: Vec<Job>) -> Result<Vec<Job>>;
 
-    fn enrich(
+    fn enrich_all_jobs(
         &self,
         browser: &headless_chrome::Browser,
         jobs: Vec<Job>,
@@ -25,7 +25,6 @@ pub trait JobEnricher: Sync {
             tabs_map.insert(i, browser.new_tab()?);
         }
         let tabs = tabs_map;
-
         let pool = ThreadPoolBuilder::new().num_threads(thread_count).build()?;
 
         let enriched_jobs = pool.install(|| {
