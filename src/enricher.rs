@@ -40,12 +40,15 @@ pub trait JobEnricher: Sync {
 
                     match self.fetch_rate_and_reviews(tab, &url) {
                         Ok((rating, review_count)) => {
-                            println!("[Thread {:?}] 완료: {}", thread_idx, job.company);
+                            println!("[Thread {:?}] 완료: {}", thread_idx, normalized_company);
                             job.rating = rating;
                             job.review_count = review_count;
                         }
                         Err(e) => {
-                            eprintln!("[Thread {:?}] 실패 ({}): {}", thread_idx, job.company, e);
+                            eprintln!(
+                                "[Thread {:?}] 실패 ({}): {}",
+                                thread_idx, normalized_company, e
+                            );
                         }
                     }
 
