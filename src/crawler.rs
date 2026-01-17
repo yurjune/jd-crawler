@@ -32,9 +32,9 @@ pub trait JobCrawler {
 }
 
 pub trait JobListInfiniteScrollCrawler: JobCrawler {
-    fn parse_all_jobs(&self, html: &str) -> Result<Vec<Job>>;
-
     fn go_next_page(&self, tab: &Arc<Tab>) -> Result<()>;
+
+    fn parse_html(&self, html: &str) -> Result<Vec<Job>>;
 
     fn fetch_all_jobs(
         &self,
@@ -54,7 +54,7 @@ pub trait JobListInfiniteScrollCrawler: JobCrawler {
             let new_jobs: Vec<_> = tab
                 .get_content()
                 .ok()
-                .and_then(|html| self.parse_all_jobs(&html).ok())
+                .and_then(|html| self.parse_html(&html).ok())
                 .unwrap_or_else(|| {
                     eprintln!("페이지 {}: 처리 실패", current_page);
                     Vec::new()
@@ -93,12 +93,14 @@ pub trait JobListInfiniteScrollCrawler: JobCrawler {
 pub trait JobListPaginatedCrawler: JobCrawler + Sync {
     fn build_page_url(&self, base_url: &str, page: usize) -> String;
 
+    fn parse_html(&self, html: &str) -> Result<Vec<Job>>;
+
     fn fetch_jobs(&self, tab: &Arc<Tab>, url: &str) -> Result<Vec<Job>> {
         tab.navigate_to(url)?;
         self.wait_for_list_page_load(tab)?;
         let html = tab.get_content()?;
         std::thread::sleep(Duration::from_millis(500));
-        self.parse_job(&html)
+        self.parse_html(&html)
     }
 
     fn fetch_all_jobs(
@@ -138,15 +140,13 @@ pub trait JobListPaginatedCrawler: JobCrawler + Sync {
 
         Ok(all_jobs)
     }
-
-    fn parse_job(&self, html: &str) -> Result<Vec<Job>>;
 }
 
 pub trait JobFieldExtractor {
     fn extract_title(&self, fragment: &Html) -> Option<String>;
     fn extract_company(&self, fragment: &Html) -> Option<String>;
     fn extract_experience_years(&self, fragment: &Html) -> Option<String>;
-    fn extract_url(&self, fragment: &Html) -> Option<String>;
     fn extract_deadline(&self, fragment: &Html) -> Option<String>;
     fn extract_location(&self, fragment: &Html) -> Option<String>;
+    fn extract_url(&self, fragment: &Html) -> Option<String>;
 }

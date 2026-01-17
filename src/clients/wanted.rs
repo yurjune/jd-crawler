@@ -168,7 +168,7 @@ impl JobCrawler for WantedClient {
 }
 
 impl JobListInfiniteScrollCrawler for WantedClient {
-    fn parse_all_jobs(&self, html: &str) -> Result<Vec<Job>> {
+    fn parse_html(&self, html: &str) -> Result<Vec<Job>> {
         let document = Html::parse_document(html);
 
         let body_selector = Selector::parse(r#"div[class*="JobCard_JobCard__body__"]"#).unwrap();

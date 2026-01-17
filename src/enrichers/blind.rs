@@ -48,10 +48,10 @@ impl JobEnricher for BlindEnricher {
 
         let html = tab.get_content()?;
         std::thread::sleep(Duration::from_millis(500));
-        self.parse_data(&html)
+        self.parse_html(&html)
     }
 
-    fn parse_data(&self, html: &str) -> Result<(Option<String>, Option<u32>)> {
+    fn parse_html(&self, html: &str) -> Result<(Option<String>, Option<u32>)> {
         let document = Html::parse_document(html);
         let rating = self.extract_rating(&document);
         let review_count = self.extract_review_count(&document);

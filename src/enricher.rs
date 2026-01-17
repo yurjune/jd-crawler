@@ -72,7 +72,7 @@ pub trait JobEnricher: Sync {
         re.replace_all(company, "").trim().to_string()
     }
 
-    fn parse_data(&self, html: &str) -> Result<(Option<String>, Option<u32>)>;
+    fn parse_html(&self, html: &str) -> Result<(Option<String>, Option<u32>)>;
 
     fn extract_rating(&self, document: &Html) -> Option<String>;
 

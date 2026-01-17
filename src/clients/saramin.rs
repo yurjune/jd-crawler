@@ -66,7 +66,7 @@ impl JobListPaginatedCrawler for SaraminClient {
         format!("{}&recruitPage={}", base_url, page)
     }
 
-    fn parse_job(&self, html: &str) -> Result<Vec<Job>> {
+    fn parse_html(&self, html: &str) -> Result<Vec<Job>> {
         let document = Html::parse_document(html);
         let job_card_selector = Selector::parse(r"div.item_recruit").unwrap();
 
