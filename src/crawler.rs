@@ -109,12 +109,9 @@ pub trait JobListPaginatedCrawler: JobCrawler + Sync {
         num_threads: usize,
     ) -> Result<Vec<Job>> {
         let pool = ThreadPoolBuilder::new().num_threads(num_threads).build()?;
-
-        let mut tabs_map = HashMap::new();
-        for i in 0..num_threads {
-            tabs_map.insert(i, browser.new_tab()?);
-        }
-        let tabs = tabs_map;
+        let tabs: HashMap<_, _> = (0..num_threads)
+            .map(|i| (i, browser.new_tab().unwrap()))
+            .collect();
 
         let all_jobs: Vec<Job> = pool.install(|| {
             (1..=total_pages)

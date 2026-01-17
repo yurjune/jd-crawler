@@ -21,12 +21,10 @@ pub trait JobEnricher: Sync {
         jobs: &[Job],
         thread_count: usize,
     ) -> Result<Vec<Job>> {
-        let mut tabs_map = HashMap::new();
-        for i in 0..thread_count {
-            tabs_map.insert(i, browser.new_tab()?);
-        }
-        let tabs = tabs_map;
         let pool = ThreadPoolBuilder::new().num_threads(thread_count).build()?;
+        let tabs: HashMap<_, _> = (0..thread_count)
+            .map(|i| (i, browser.new_tab().unwrap()))
+            .collect();
 
         let enriched_jobs = pool.install(|| {
             jobs.par_iter()

@@ -100,14 +100,12 @@ impl WantedClient {
         num_threads: usize,
     ) -> Result<Vec<Job>> {
         let pool = ThreadPoolBuilder::new().num_threads(num_threads).build()?;
-        let total = jobs.len();
-        let counter = Arc::new(AtomicUsize::new(0));
+        let tabs: HashMap<_, _> = (0..num_threads)
+            .map(|i| (i, browser.new_tab().unwrap()))
+            .collect();
 
-        let mut tabs_map = HashMap::new();
-        for i in 0..num_threads {
-            tabs_map.insert(i, browser.new_tab()?);
-        }
-        let tabs = tabs_map;
+        let total = jobs.len();
+        let counter = AtomicUsize::new(0);
 
         let jobs_with_details: Vec<Job> = pool.install(|| {
             jobs.into_par_iter()
