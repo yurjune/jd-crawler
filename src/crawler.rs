@@ -150,3 +150,53 @@ pub trait JobFieldExtractor {
     fn extract_location(&self, fragment: &Html) -> Option<String>;
     fn extract_url(&self, fragment: &Html) -> Option<String>;
 }
+
+pub trait DetailCrawler: Sync + JobCrawler {
+    fn fetch_job_detail(&self, _tab: &Arc<Tab>, job: &Job) -> Result<Job> {
+        Ok(job.clone())
+    }
+
+    fn fetch_details(&self, jobs: Vec<Job>, thread_count: usize) -> Result<Vec<Job>> {
+        let browser = self
+            .create_browser()
+            .inspect_err(|e| eprintln!("❌ 브라우저 생성 실패: {}", e))?;
+
+        let pool = ThreadPoolBuilder::new().num_threads(thread_count).build()?;
+
+        let tabs: HashMap<_, _> = (0..thread_count)
+            .map(|i| (i, browser.new_tab().unwrap()))
+            .collect();
+
+        let total = jobs.len();
+        let counter = std::sync::atomic::AtomicUsize::new(0);
+
+        let jobs_with_details: Vec<Job> = pool.install(|| {
+            jobs.into_par_iter()
+                .map(|job| {
+                    let thread_index = rayon::current_thread_index().unwrap();
+                    let tab = &tabs[&thread_index];
+                    let count = counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+
+                    match self.fetch_job_detail(tab, &job) {
+                        Ok(updated_job) => {
+                            println!(
+                                "[Thread {:?}] {}/{} 완료: {}",
+                                thread_index, count, total, job.title
+                            );
+                            updated_job
+                        }
+                        Err(e) => {
+                            eprintln!(
+                                "[Thread {:?}] {}/{} 실패 ({}): {}",
+                                thread_index, count, total, job.title, e
+                            );
+                            job
+                        }
+                    }
+                })
+                .collect()
+        });
+
+        Ok(jobs_with_details)
+    }
+}

@@ -180,7 +180,7 @@ impl JobFieldExtractor for SaraminClient {
 }
 
 impl Crawler for SaraminClient {
-    fn start_crawl(self) -> Result<Vec<Job>> {
+    fn start_crawl(&self) -> Result<Vec<Job>> {
         let browser = self
             .create_browser()
             .inspect_err(|e| eprintln!("❌ 사람인 채용공고 수집 실패: {}", e))?;

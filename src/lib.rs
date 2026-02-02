@@ -15,7 +15,7 @@ pub use crawler::{JobCrawler, JobListInfiniteScrollCrawler, JobListPaginatedCraw
 pub use enricher::{EnricherConfig, JobEnricher};
 pub use enrichers::BlindEnricher;
 pub use models::Job;
-pub use pipeline::CrawlPipeline;
+pub use pipeline::{CrawlPipeline, DetailFetcherConfig};
 pub use writer::save_to_csv;
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;

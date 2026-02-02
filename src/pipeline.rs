@@ -1,12 +1,18 @@
+use crate::crawler::DetailCrawler;
 use crate::enricher::JobEnricher;
 use crate::writer::save_to_csv;
 use crate::{Job, Result};
 
+pub struct DetailFetcherConfig {
+    pub thread_count: usize,
+}
+
 pub struct CrawlPipeline;
 
 #[must_use = "pipeline must end with .save() to execute"]
-pub struct PipelineWithJobs {
+pub struct PipelineWithJobs<C> {
     jobs: Vec<Job>,
+    client: C,
 }
 
 impl CrawlPipeline {
@@ -14,12 +20,12 @@ impl CrawlPipeline {
         Self
     }
 
-    pub fn crawl<C>(self, client: C) -> Result<PipelineWithJobs>
+    pub fn crawl<C>(self, client: C) -> Result<PipelineWithJobs<C>>
     where
         C: Crawler,
     {
         let jobs = client.start_crawl()?;
-        Ok(PipelineWithJobs { jobs })
+        Ok(PipelineWithJobs { jobs, client })
     }
 }
 
@@ -29,7 +35,11 @@ impl Default for CrawlPipeline {
     }
 }
 
-impl PipelineWithJobs {
+pub trait Crawler {
+    fn start_crawl(&self) -> Result<Vec<Job>>;
+}
+
+impl<C> PipelineWithJobs<C> {
     pub fn enrich(mut self, enricher: impl JobEnricher + 'static) -> Self {
         if let Ok(enriched) = enricher.start_enrich(&self.jobs) {
             self.jobs = enriched
@@ -56,6 +66,24 @@ impl PipelineWithJobs {
     }
 }
 
-pub trait Crawler {
-    fn start_crawl(self) -> Result<Vec<Job>>;
+impl<C> PipelineWithJobs<C>
+where
+    C: DetailCrawler,
+{
+    pub fn fetch_details(mut self, config: DetailFetcherConfig) -> Self {
+        println!("상세 정보 수집 시작..");
+        match self
+            .client
+            .fetch_details(self.jobs.clone(), config.thread_count)
+        {
+            Ok(jobs_with_details) => {
+                println!("✅ 상세 정보 수집 완료");
+                self.jobs = jobs_with_details;
+            }
+            Err(e) => {
+                eprintln!("❌ 상세 정보 수집 실패: {}", e);
+            }
+        }
+        self
+    }
 }

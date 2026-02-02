@@ -1,13 +1,9 @@
-use crate::crawler::{JobCrawler, JobFieldExtractor, JobListInfiniteScrollCrawler};
+use crate::crawler::{DetailCrawler, JobCrawler, JobFieldExtractor, JobListInfiniteScrollCrawler};
 use crate::pipeline::Crawler;
 use crate::{Job, Result};
 use headless_chrome::Tab;
-use rayon::ThreadPoolBuilder;
-use rayon::prelude::*;
 use scraper::{Html, Selector};
-use std::collections::HashMap;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 #[derive(Debug, Clone)]
@@ -17,7 +13,6 @@ pub struct WantedCrawlConfig {
     pub total_pages: usize,
     pub min_years: u8,
     pub max_years: u8,
-    pub full_crawl: bool,
     pub thread_count: usize,
 }
 
@@ -29,7 +24,6 @@ impl Default for WantedCrawlConfig {
             total_pages: 1,
             min_years: 0,
             max_years: 5,
-            full_crawl: true,
             thread_count: 8,
         }
     }
@@ -91,67 +85,6 @@ impl WantedClient {
             self.config.min_years,
             self.config.max_years
         )
-    }
-
-    fn fetch_all_job_detail(
-        &self,
-        browser: &headless_chrome::Browser,
-        jobs: Vec<Job>,
-        num_threads: usize,
-    ) -> Result<Vec<Job>> {
-        let pool = ThreadPoolBuilder::new().num_threads(num_threads).build()?;
-        let tabs: HashMap<_, _> = (0..num_threads)
-            .map(|i| (i, browser.new_tab().unwrap()))
-            .collect();
-
-        let total = jobs.len();
-        let counter = AtomicUsize::new(0);
-
-        let jobs_with_details: Vec<Job> = pool.install(|| {
-            jobs.into_par_iter()
-                .map(|mut job| {
-                    let thread_index = rayon::current_thread_index().unwrap();
-                    let tab = &tabs[&thread_index];
-                    let result = self.fetch_job_detail(tab, &job.url);
-                    let count = counter.fetch_add(1, Ordering::Relaxed) + 1;
-
-                    match result {
-                        Ok(deadline) => {
-                            println!(
-                                "[Thread {:?}] {}/{} 완료: {}",
-                                thread_index, count, total, job.title
-                            );
-                            job.deadline = deadline.unwrap_or_default();
-                        }
-                        Err(e) => {
-                            eprintln!(
-                                "[Thread {:?}] {}/{} 실패 ({}): {}",
-                                thread_index, count, total, job.title, e
-                            );
-                        }
-                    }
-                    job
-                })
-                .collect()
-        });
-
-        Ok(jobs_with_details)
-    }
-
-    fn fetch_job_detail(
-        &self,
-        tab: &Arc<headless_chrome::Tab>,
-        url: &str,
-    ) -> Result<Option<String>> {
-        tab.navigate_to(url)?;
-        self.wait_for_detail_page_load(tab)?;
-
-        let html = tab.get_content()?;
-        let document = Html::parse_document(&html);
-        let deadline = self.extract_deadline(&document);
-
-        std::thread::sleep(Duration::from_millis(500));
-        Ok(deadline)
     }
 }
 
@@ -277,7 +210,7 @@ impl Default for WantedClient {
 }
 
 impl Crawler for WantedClient {
-    fn start_crawl(self) -> Result<Vec<Job>> {
+    fn start_crawl(&self) -> Result<Vec<Job>> {
         let url = self.build_url();
         let browser = self
             .create_browser()
@@ -286,18 +219,23 @@ impl Crawler for WantedClient {
         println!("원티드 채용공고 목록 수집 시작..",);
         self.fetch_all_jobs(&browser, &url, self.config.total_pages)
             .inspect(|jobs| println!("\n✅ 원티드 채용공고 {}개 수집 완료", jobs.len()))
-            .and_then(|jobs| {
-                if !self.config.full_crawl {
-                    return Ok(jobs);
-                }
-
-                println!("\n원티드 각 상세 채용공고 수집 시작..");
-
-                self.fetch_all_job_detail(&browser, jobs.clone(), self.config.thread_count)
-                    .inspect(|_| println!("✅ 원티드 각 상세 채용공고 수집 완료"))
-                    .inspect_err(|e| eprintln!("상세 채용공고 추가 수집 실패: {}", e))
-                    .or(Ok(jobs))
-            })
             .inspect_err(|e| eprintln!("❌ 원티드 채용공고 수집 실패: {}", e))
+    }
+}
+
+impl DetailCrawler for WantedClient {
+    fn fetch_job_detail(&self, tab: &Arc<Tab>, job: &Job) -> Result<Job> {
+        tab.navigate_to(&job.url)?;
+        self.wait_for_detail_page_load(tab)?;
+
+        let html = tab.get_content()?;
+        let document = Html::parse_document(&html);
+        let deadline = self.extract_deadline(&document);
+
+        std::thread::sleep(Duration::from_millis(500));
+
+        let mut updated_job = job.clone();
+        updated_job.deadline = deadline.unwrap_or_default();
+        Ok(updated_job)
     }
 }
