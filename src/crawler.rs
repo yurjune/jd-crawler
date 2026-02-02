@@ -78,11 +78,11 @@ pub trait JobListInfiniteScrollCrawler: JobCrawler {
                 println!("더 이상 새 데이터 없음");
                 break;
             }
-            if current_page < total_pages {
-                if let Err(e) = self.go_next_page(&tab) {
-                    eprintln!("페이지 추가 로드 실패: 크롤링 종료: {}", e);
-                    break;
-                }
+            if current_page < total_pages
+                && let Err(e) = self.go_next_page(&tab)
+            {
+                eprintln!("페이지 추가 로드 실패: 크롤링 종료: {}", e);
+                break;
             }
         }
 
