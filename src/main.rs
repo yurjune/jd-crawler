@@ -16,7 +16,10 @@ fn main() -> Result<()> {
             thread_count: 8,
             exclude_keywords: vec!["IOS", "안드로이드", "5년 이상"],
         }))?
-        .fetch_details(DetailFetcherConfig { thread_count: 8 })
+        .fetch_details(DetailFetcherConfig {
+            thread_count: 8,
+            includes: vec![],
+        })
         .save_and_then("wanted.csv")
         .enrich(BlindEnricher::new(EnricherConfig { thread_count: 1 }))
         .save("wanted.csv");

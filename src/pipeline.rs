@@ -5,6 +5,7 @@ use crate::{Job, Result};
 
 pub struct DetailFetcherConfig {
     pub thread_count: usize,
+    pub includes: Vec<&'static str>,
 }
 
 pub struct CrawlPipeline;
@@ -72,10 +73,7 @@ where
 {
     pub fn fetch_details(mut self, config: DetailFetcherConfig) -> Self {
         println!("상세 정보 수집 시작..");
-        match self
-            .client
-            .fetch_details(self.jobs.clone(), config.thread_count)
-        {
+        match self.client.fetch_details(self.jobs.clone(), config) {
             Ok(jobs_with_details) => {
                 println!("✅ 상세 정보 수집 완료");
                 self.jobs = jobs_with_details;

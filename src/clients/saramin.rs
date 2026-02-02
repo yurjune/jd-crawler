@@ -84,6 +84,7 @@ impl JobListPaginatedCrawler for SaraminClient {
                     .exclude_keywords
                     .iter()
                     .any(|key| title.to_lowercase().contains(&key.to_lowercase()));
+
                 if should_exclude {
                     return None;
                 }

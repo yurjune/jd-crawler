@@ -1,6 +1,6 @@
 use crate::crawler::{DetailCrawler, JobCrawler, JobFieldExtractor, JobListInfiniteScrollCrawler};
 use crate::pipeline::Crawler;
-use crate::{Job, Result};
+use crate::{DetailFetcherConfig, Job, Result};
 use headless_chrome::Tab;
 use scraper::{Html, Selector};
 use std::sync::Arc;
@@ -236,18 +236,33 @@ impl Crawler for WantedClient {
 }
 
 impl DetailCrawler for WantedClient {
-    fn fetch_job_detail(&self, tab: &Arc<Tab>, job: &Job) -> Result<Job> {
+    fn fetch_job_detail(
+        &self,
+        tab: &Arc<Tab>,
+        job: &Job,
+        config: &DetailFetcherConfig,
+    ) -> Result<Option<Job>> {
         tab.navigate_to(&job.url)?;
         self.wait_for_detail_page_load(tab)?;
 
         let html = tab.get_content()?;
         let document = Html::parse_document(&html);
+
+        let text = document.root_element().text().collect::<String>();
+        let should_include = config.includes.is_empty()
+            || config.includes.iter().any(|keyword| text.contains(keyword));
+
+        if !should_include {
+            return Ok(None);
+        }
+
         let deadline = self.extract_deadline(&document);
 
         std::thread::sleep(Duration::from_millis(500));
 
         let mut updated_job = job.clone();
         updated_job.deadline = deadline.unwrap_or_default();
-        Ok(updated_job)
+
+        Ok(Some(updated_job))
     }
 }

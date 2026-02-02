@@ -1,3 +1,4 @@
+use crate::DetailFetcherConfig;
 use crate::{Job, Result};
 use headless_chrome::{Browser, LaunchOptions, Tab};
 use rayon::ThreadPoolBuilder;
@@ -152,18 +153,25 @@ pub trait JobFieldExtractor {
 }
 
 pub trait DetailCrawler: Sync + JobCrawler {
-    fn fetch_job_detail(&self, _tab: &Arc<Tab>, job: &Job) -> Result<Job> {
-        Ok(job.clone())
+    fn fetch_job_detail(
+        &self,
+        _tab: &Arc<Tab>,
+        job: &Job,
+        _config: &DetailFetcherConfig,
+    ) -> Result<Option<Job>> {
+        Ok(Some(job.clone()))
     }
 
-    fn fetch_details(&self, jobs: Vec<Job>, thread_count: usize) -> Result<Vec<Job>> {
+    fn fetch_details(&self, jobs: Vec<Job>, config: DetailFetcherConfig) -> Result<Vec<Job>> {
         let browser = self
             .create_browser()
             .inspect_err(|e| eprintln!("❌ 브라우저 생성 실패: {}", e))?;
 
-        let pool = ThreadPoolBuilder::new().num_threads(thread_count).build()?;
+        let pool = ThreadPoolBuilder::new()
+            .num_threads(config.thread_count)
+            .build()?;
 
-        let tabs: HashMap<_, _> = (0..thread_count)
+        let tabs: HashMap<_, _> = (0..config.thread_count)
             .map(|i| (i, browser.new_tab().unwrap()))
             .collect();
 
@@ -172,25 +180,26 @@ pub trait DetailCrawler: Sync + JobCrawler {
 
         let jobs_with_details: Vec<Job> = pool.install(|| {
             jobs.into_par_iter()
-                .map(|job| {
+                .filter_map(|job| {
                     let thread_index = rayon::current_thread_index().unwrap();
                     let tab = &tabs[&thread_index];
                     let count = counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
 
-                    match self.fetch_job_detail(tab, &job) {
-                        Ok(updated_job) => {
+                    match self.fetch_job_detail(tab, &job, &config) {
+                        Ok(Some(updated_job)) => {
                             println!(
                                 "[Thread {:?}] {}/{} 완료: {}",
                                 thread_index, count, total, job.title
                             );
-                            updated_job
+                            Some(updated_job)
                         }
+                        Ok(None) => None,
                         Err(e) => {
                             eprintln!(
                                 "[Thread {:?}] {}/{} 실패 ({}): {}",
                                 thread_index, count, total, job.title, e
                             );
-                            job
+                            None
                         }
                     }
                 })
