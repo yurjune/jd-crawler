@@ -31,9 +31,8 @@ impl Default for CrawlPipeline {
 
 impl PipelineWithJobs {
     pub fn enrich(mut self, enricher: impl JobEnricher + 'static) -> Self {
-        match enricher.start_enrich(&self.jobs) {
-            Ok(enriched) => self.jobs = enriched,
-            Err(_) => {} // Keep original jobs
+        if let Ok(enriched) = enricher.start_enrich(&self.jobs) {
+            self.jobs = enriched
         }
         self
     }
