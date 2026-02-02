@@ -11,6 +11,7 @@ pub struct SaraminCrawlConfig {
     pub category: SaraminJobCategory,
     pub total_pages: usize,
     pub thread_count: usize,
+    pub exclude_keywords: Vec<&'static str>,
 }
 
 impl Default for SaraminCrawlConfig {
@@ -19,6 +20,7 @@ impl Default for SaraminCrawlConfig {
             category: SaraminJobCategory::Frontend,
             total_pages: 1,
             thread_count: 1,
+            exclude_keywords: Vec::new(),
         }
     }
 }
@@ -72,11 +74,20 @@ impl JobListPaginatedCrawler for SaraminClient {
 
         let jobs = document
             .select(&job_card_selector)
-            .map(|card| {
+            .filter_map(|card| {
                 let card_html = card.html();
                 let card_fragment = Html::parse_fragment(&card_html);
 
                 let title = self.extract_title(&card_fragment).unwrap_or_default();
+                let should_exclude = self
+                    .config
+                    .exclude_keywords
+                    .iter()
+                    .any(|key| title.to_lowercase().contains(&key.to_lowercase()));
+                if should_exclude {
+                    return None;
+                }
+
                 let company = self.extract_company(&card_fragment).unwrap_or_default();
                 let experience_years = self
                     .extract_experience_years(&card_fragment)
@@ -85,7 +96,7 @@ impl JobListPaginatedCrawler for SaraminClient {
                 let deadline = self.extract_deadline(&card_fragment).unwrap_or_default();
                 let location = self.extract_location(&card_fragment).unwrap_or_default();
 
-                Job {
+                Some(Job {
                     title,
                     company,
                     experience_years,
@@ -94,7 +105,7 @@ impl JobListPaginatedCrawler for SaraminClient {
                     location,
                     rating: None,
                     review_count: None,
-                }
+                })
             })
             .collect();
 

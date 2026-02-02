@@ -14,6 +14,7 @@ pub struct WantedCrawlConfig {
     pub min_years: u8,
     pub max_years: u8,
     pub thread_count: usize,
+    pub exclude_keywords: Vec<&'static str>,
 }
 
 impl Default for WantedCrawlConfig {
@@ -25,6 +26,7 @@ impl Default for WantedCrawlConfig {
             min_years: 0,
             max_years: 5,
             thread_count: 8,
+            exclude_keywords: Vec::new(),
         }
     }
 }
@@ -108,10 +110,20 @@ impl JobListInfiniteScrollCrawler for WantedClient {
 
         let jobs = document
             .select(&body_selector)
-            .map(|body_element| {
+            .filter_map(|body_element| {
                 let body_doc = Html::parse_fragment(&body_element.html());
 
                 let title = self.extract_title(&body_doc).unwrap_or_default();
+                let should_exclude = self
+                    .config
+                    .exclude_keywords
+                    .iter()
+                    .any(|key| title.to_lowercase().contains(&key.to_lowercase()));
+
+                if should_exclude {
+                    return None;
+                }
+
                 let company = self.extract_company(&body_doc).unwrap_or_default();
                 let experience_years = self.extract_experience_years(&body_doc).unwrap_or_default();
                 let location = self.extract_location(&body_doc).unwrap_or_default();
@@ -124,14 +136,14 @@ impl JobListInfiniteScrollCrawler for WantedClient {
                     .map(|href| format!("{}{}", self.base_url, href))
                     .unwrap_or_default();
 
-                Job {
+                Some(Job {
                     title,
                     company,
                     experience_years,
                     url,
                     location,
                     ..Default::default()
-                }
+                })
             })
             .collect();
 
