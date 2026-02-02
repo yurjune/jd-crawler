@@ -1,4 +1,3 @@
-use crate::DetailFetcherConfig;
 use crate::{Job, Result};
 use headless_chrome::{Browser, LaunchOptions, Tab};
 use rayon::ThreadPoolBuilder;
@@ -152,17 +151,22 @@ pub trait JobFieldExtractor {
     fn extract_url(&self, fragment: &Html) -> Option<String>;
 }
 
+pub struct DetailCrawlConfig {
+    pub thread_count: usize,
+    pub includes: Vec<&'static str>,
+}
+
 pub trait DetailCrawler: Sync + JobCrawler {
     fn fetch_job_detail(
         &self,
         _tab: &Arc<Tab>,
         job: &Job,
-        _config: &DetailFetcherConfig,
+        _config: &DetailCrawlConfig,
     ) -> Result<Option<Job>> {
         Ok(Some(job.clone()))
     }
 
-    fn fetch_details(&self, jobs: Vec<Job>, config: DetailFetcherConfig) -> Result<Vec<Job>> {
+    fn crawl_job_details(&self, jobs: Vec<Job>, config: &DetailCrawlConfig) -> Result<Vec<Job>> {
         let browser = self
             .create_browser()
             .inspect_err(|e| eprintln!("❌ 브라우저 생성 실패: {}", e))?;
@@ -185,7 +189,7 @@ pub trait DetailCrawler: Sync + JobCrawler {
                     let tab = &tabs[&thread_index];
                     let count = counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
 
-                    match self.fetch_job_detail(tab, &job, &config) {
+                    match self.fetch_job_detail(tab, &job, config) {
                         Ok(Some(updated_job)) => {
                             println!(
                                 "[Thread {:?}] {}/{} 완료: {}",

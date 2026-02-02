@@ -1,5 +1,5 @@
 use jd_crawler::{
-    BlindEnricher, DetailFetcherConfig, EnricherConfig, SaraminClient, SaraminCrawlConfig,
+    BlindEnricher, DetailCrawlConfig, EnricherConfig, SaraminClient, SaraminCrawlConfig,
     SaraminJobCategory,
 };
 use jd_crawler::{CrawlPipeline, Result};
@@ -16,7 +16,7 @@ fn main() -> Result<()> {
             thread_count: 8,
             exclude_keywords: vec!["IOS", "안드로이드", "5년 이상"],
         }))?
-        .fetch_details(DetailFetcherConfig {
+        .fetch_details(DetailCrawlConfig {
             thread_count: 8,
             includes: vec![],
         })

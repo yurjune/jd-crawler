@@ -1,12 +1,7 @@
-use crate::crawler::DetailCrawler;
+use crate::crawler::{DetailCrawlConfig, DetailCrawler};
 use crate::enricher::JobEnricher;
 use crate::writer::save_to_csv;
 use crate::{Job, Result};
-
-pub struct DetailFetcherConfig {
-    pub thread_count: usize,
-    pub includes: Vec<&'static str>,
-}
 
 pub struct CrawlPipeline;
 
@@ -71,9 +66,9 @@ impl<C> PipelineWithJobs<C>
 where
     C: DetailCrawler,
 {
-    pub fn fetch_details(mut self, config: DetailFetcherConfig) -> Self {
+    pub fn fetch_details(mut self, config: DetailCrawlConfig) -> Self {
         println!("상세 정보 수집 시작..");
-        match self.client.fetch_details(self.jobs.clone(), config) {
+        match self.client.crawl_job_details(self.jobs.clone(), &config) {
             Ok(jobs_with_details) => {
                 println!("✅ 상세 정보 수집 완료");
                 self.jobs = jobs_with_details;

@@ -1,6 +1,8 @@
-use crate::crawler::{DetailCrawler, JobCrawler, JobFieldExtractor, JobListInfiniteScrollCrawler};
+use crate::crawler::{
+    DetailCrawlConfig, DetailCrawler, JobCrawler, JobFieldExtractor, JobListInfiniteScrollCrawler,
+};
 use crate::pipeline::Crawler;
-use crate::{DetailFetcherConfig, Job, Result};
+use crate::{Job, Result};
 use headless_chrome::Tab;
 use scraper::{Html, Selector};
 use std::sync::Arc;
@@ -240,7 +242,7 @@ impl DetailCrawler for WantedClient {
         &self,
         tab: &Arc<Tab>,
         job: &Job,
-        config: &DetailFetcherConfig,
+        config: &DetailCrawlConfig,
     ) -> Result<Option<Job>> {
         tab.navigate_to(&job.url)?;
         self.wait_for_detail_page_load(tab)?;
